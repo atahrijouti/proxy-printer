@@ -1,7 +1,7 @@
 {
   "name": "pokemon-proxies",
   "scripts": {
-    "start": "parcel serve --dist-dir build src/views/*.html ./cards/**/**"
+    "start": "parcel serve --dist-dir build src/views/*.html ./cards/**/** ./resources/**/**"
   },
   "keywords": [],
   "author": "",

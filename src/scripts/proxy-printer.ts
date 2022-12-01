@@ -7,7 +7,7 @@ let page = document.createElement("div")
 for (let i = 0; i < (PRINT_BACK ? 9 : 61); i++) {
   let img = document.createElement("img")
   img.classList.add("img")
-  img.src = `/cards/resources/Card Back.png`
+  img.src = `/resources/Card Back.png`
 
   let paddedIndex = `${i}`.padStart(3, "0")
 
@@ -22,16 +22,3 @@ for (let i = 0; i < (PRINT_BACK ? 9 : 61); i++) {
   }
   page.appendChild(img)
 }
-
-// document.body.addEventListener("click", e => {
-//     console.log(direction);
-//     if (direction === "rtl") {
-//         document.body.classList.remove("rtl")
-//         document.body.classList.add("ltr")
-//         direction = "ltr"
-//     } else {
-//         document.body.classList.add("rtl")
-//         document.body.classList.remove("ltr")
-//         direction = "rtl"
-//     }
-// }, false)
