@@ -1,5 +1,5 @@
 const DECK = "starter"
-const PRINT_BACK = true
+const PRINT_BACK = false
 
 let root = document.getElementById("root")
 let page = document.createElement("div")
