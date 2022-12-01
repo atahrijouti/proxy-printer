@@ -1,0 +1,5 @@
+node_modules
+cards
+.parcel-cache
+.idea
+build

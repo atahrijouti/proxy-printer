@@ -1,0 +1,44 @@
+:root {
+  --card-width: 63mm;
+  --card-height: 88mm;
+  --gap-size: 1mm;
+}
+
+@media print {
+  * {
+    page-break-inside: avoid;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+}
+
+body {
+  color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.page {
+  page-break-inside: avoid;
+  display: inline-grid;
+  grid-template-columns: repeat(3, var(--card-width));
+  flex-wrap: wrap;
+  gap: var(--gap-size);
+  margin-top: var(--gap-size);
+  margin-left: 10mm;
+}
+
+.rtl {
+  direction: rtl;
+}
+
+img {
+  height: var(--card-height);
+  width: var(--card-width);
+  border-radius: 12px;
+}
