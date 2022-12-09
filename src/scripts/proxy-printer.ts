@@ -1,26 +1,46 @@
-const DECK = "starter"
-const PRINT_BACK = false
+let PRINT_BACK = true
+PRINT_BACK = false
+const CARDS_PER_PAGE = 9
+
+const DECK = PRINT_BACK ? "Card Back" : "base set"
+console.log(DECK)
+if (PRINT_BACK) {
+  document.body.classList.add("card-back")
+} else {
+  document.body.classList.remove("card-back")
+}
+
+document.title = DECK
 
 let root = document.getElementById("root")
-let page = document.createElement("div")
 
-for (let i = 0; i < (PRINT_BACK ? 9 : 61); i++) {
+const images = []
+
+const makeImg = (src: string, classNames?: string[]) => {
   let img = document.createElement("img")
   img.classList.add("img")
+  if (classNames) {
+    classNames.forEach((className) => img.classList.add(className))
+  }
+  img.src = src
+  return img
+}
 
+for (let i = 96; i <= (PRINT_BACK ? 9 : 102); i++) {
   if (PRINT_BACK) {
-    img.src = `/resources/Card Back.png`
-    document.body.classList.add("extraMargin")
+    images.push(makeImg(`/resources/Card Back.png`))
   } else {
     let paddedIndex = `${i}`.padStart(3, "0")
-    img.src = `/cards/${DECK}/${paddedIndex}.png`
-    document.body.classList.remove("extraMargin")
+    Array.from({ length: 20 }).forEach(() => {
+      images.push(makeImg(`/cards/${DECK}/${paddedIndex}fe.jpg`, ["radius"]))
+    })
   }
+}
 
-  if (i % 9 === 0) {
-    page = document.createElement("div")
-    page.classList.add("page")
-    root?.appendChild(page)
-  }
-  page.appendChild(img)
+for (let i = 0; i < images.length; i += CARDS_PER_PAGE) {
+  const chunk = images.slice(i, i + CARDS_PER_PAGE)
+  const page = document.createElement("div")
+  page.classList.add("page")
+  chunk.forEach((image) => page.appendChild(image))
+  root?.appendChild(page)
 }
