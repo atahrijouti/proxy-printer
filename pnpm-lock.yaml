@@ -11,6 +11,9 @@ devDependencies:
   '@tsconfig/create-react-app':
     specifier: ^2.0.1
     version: 2.0.1
+  '@types/node':
+    specifier: ^20.5.0
+    version: 20.5.0
   '@types/react':
     specifier: ^18.2.20
     version: 18.2.20
@@ -1032,6 +1035,10 @@ packages:
 
   /@tsconfig/create-react-app@2.0.1:
     resolution: {integrity: sha512-M/wUfGIifMUNqDO5APZmlHTmHXiO5kUPQehxi3Jz6VdaUJqQehuvAB0oNzGHevbl9od/9fS41KvQChgjVgg2tw==}
+    dev: true
+
+  /@types/node@20.5.0:
+    resolution: {integrity: sha512-Mgq7eCtoTjT89FqNoTzzXg2XvCi5VMhRV6+I2aYanc6kQCBImeNaAYRs/DyoVqk1YEUJK5gN9VO7HRIdz4Wo3Q==}
     dev: true
 
   /@types/parse-json@4.0.0:
