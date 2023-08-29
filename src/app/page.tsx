@@ -115,7 +115,7 @@ const CardBackList = () => {
   return (
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
-        imageUrl: "/resources/Lorcana_Card_Back.jpg",
+        imageUrl: "/cards/lorcana/card-back.jpg",
         id: "Card Back",
       }))}
     />
