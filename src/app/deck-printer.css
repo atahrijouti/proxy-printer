@@ -15,7 +15,8 @@
   padding: 0;
 }
 
-#root {}
+#root {
+}
 
 body {
   color-adjust: exact;
@@ -37,9 +38,11 @@ body {
 }
 
 .card-back .page {
-  margin-left: calc(var(--page-left-margin) + var(--cardback-margin-offset) - calc(2 * var(--gap-size)));
+  margin-left: calc(
+    var(--page-left-margin) + var(--cardback-margin-offset) - calc(2 * var(--gap-size))
+  );
   /*box-shadow: 0 0 0 var(--cardback-group-extra-background) var(--cardback-border);*/
-  background: url("/resources/cardback-background.png");
+  background: url("/cards/lorcana/cardback-background.png");
 }
 
 .rtl {
@@ -158,7 +161,6 @@ text max-width 190px
 }
 
 @media print {
-
   .no-print,
   .no-print * {
     display: none !important;

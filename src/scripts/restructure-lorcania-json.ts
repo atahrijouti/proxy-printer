@@ -62,7 +62,19 @@ const mapColor = (color: number) => {
 }
 
 const clean = (text: string) => {
-  return text.replace(new RegExp("\u0003", "g"), "")
+  return (
+    text
+      // remove unwanted \u0003 character
+      .replace(new RegExp("\u0003", "g"), "")
+      // remove line returns from text
+      .replace(new RegExp("\n", "g"), " ")
+      // remove repeated spaces
+      .replace(new RegExp("\\s+", "g"), " ")
+      // remove spaces between tags
+      .replace(new RegExp("\\s+<", "g"), "<")
+      .replace(new RegExp(">\\s+", "g"), ">")
+    // TODO: Put Parentheses inside <i>
+  )
 }
 
 const keepDictFields = ({
@@ -81,16 +93,16 @@ const keepDictFields = ({
 }: LorcaniaCard) => ({
   name,
   title,
+  traits,
+  flavour: flavour ? clean(flavour) : null,
   cost,
   attack,
   defence,
   type,
-  flavour: flavour ? clean(flavour) : null,
   separator,
   stars,
   number,
   rarity,
-  traits,
 })
 
 const getCardOverlays = (card: LorcaniaCard) => {
@@ -126,16 +138,19 @@ const program = async () => {
         id += ` - ${card.title.toLowerCase()}`
       }
 
+      const { name, title, traits, ...rest } = keepDictFields(card)
+
       acc[id] = {
-        ...keepDictFields(card),
+        name,
+        title,
+        traits,
+        text: clean(card.action ?? ""),
         inkwell: !!card.inkwell,
         id,
         color: mapColor(card.color),
-        text: clean(card.action ?? ""),
-        imageUrl: encodeURI(
-          `/cards/lorcana/${`${card.number}`.padStart(4, "0")}.jpg`,
-        ),
+        imageUrl: encodeURI(`/cards/lorcana/${`${card.number}`.padStart(4, "0")}.jpg`),
         overlays: getCardOverlays(card),
+        ...rest,
       }
 
       return acc

@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { ChangeEvent, useCallback, useEffect, useState } from "react"
 import _debounce from "lodash/debounce"
@@ -133,15 +133,19 @@ const mapPrompt = (dict: CardDict, prompt: string) => {
   const cards: Card[] = []
   lines.forEach((line) => {
     const matches = line.match(/^(\d+)\s(.*)$/)
+
     if (!matches) {
       return
     }
+
     const count = Number(matches[1])
     const id = matches[2]
     const card = dict[id.toLowerCase()]
+
     if (!card) {
-      console.log(`couldn't find card ${id}`)
+      return
     }
+
     Array.from({ length: count }).forEach((_) => cards.push(card))
   })
   return cards
@@ -153,17 +157,7 @@ export default () => {
   const [displayedCards, setDisplayedCards] = useState<Card[]>([])
   const [dictUrl, setDictUrl] = useState<string>("/data/lorcana-proxy-cards.json")
   const [cardDict, setCardDict] = useState<{ [index: string]: Card }>({})
-  const [cardPrompt, setCardPrompt] = useState<string>(
-    `1 Tinker Bell - Giant Fairy
-1 Dinglehopper
-1 Mickey Mouse - Wayward Sorcerer
-1 Stitch - Rock Star
-1 Anna - Heir to Arendelle
-1 Dr. Facilier - Agent Provocateur
-1 Befuddle
-1 Magic Mirror
-1 Genie - Powers Unleashed`,
-  )
+  const [cardPrompt, setCardPrompt] = useState<string>(`1 Fire The Cannons!`)
 
   useEffect(() => {
     fetchDict()
@@ -251,4 +245,3 @@ export default () => {
     </>
   )
 }
-
