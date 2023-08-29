@@ -1,0 +1,178 @@
+:root {
+  --card-width: 63mm;
+  --card-height: 88mm;
+  --card-cutting-guide: 1px;
+  --gap-size: 2px;
+  --card-border: #000000;
+  --cardback-border: #000000;
+  --page-left-margin: 10mm;
+  --cardback-margin-offset: 2mm;
+  --cardback-group-extra-background: 10px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+#root {}
+
+body {
+  color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.page {
+  margin-top: 10mm;
+  margin-left: var(--page-left-margin);
+  display: inline-grid;
+  grid-template-columns: repeat(3, var(--card-width));
+  flex-wrap: wrap;
+  gap: var(--gap-size);
+  position: relative;
+}
+
+.guide {
+  position: absolute;
+}
+
+.card-back .page {
+  margin-left: calc(var(--page-left-margin) + var(--cardback-margin-offset) - calc(2 * var(--gap-size)));
+  /*box-shadow: 0 0 0 var(--cardback-group-extra-background) var(--cardback-border);*/
+  background: url("/resources/cardback-background.png");
+}
+
+.rtl {
+  direction: rtl;
+}
+
+.card-sleeve {
+  height: var(--card-height);
+  width: var(--card-width);
+  position: relative;
+}
+
+.img {
+  box-shadow: 0 0 0 var(--card-cutting-guide) var(--card-border);
+  display: block;
+  height: var(--card-height);
+  width: var(--card-width);
+}
+
+.img.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.card-sleeve .name {
+  position: absolute;
+  top: 176px;
+  left: 14px;
+  font-family: "The Bystander Collection Sans", sans-serif;
+  font-size: 18px;
+  color: white;
+  font-weight: lighter;
+}
+
+.card-sleeve.item .name,
+.card-sleeve.song .name,
+.card-sleeve.action .name {
+  top: 182px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.card-sleeve .title {
+  position: absolute;
+  top: 196px;
+  left: 14px;
+  font-family: "Brandon Text", sans-serif;
+  color: white;
+  font-size: 9px;
+}
+
+.card-sleeve .traits {
+  position: absolute;
+  top: 210px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-family: "Brandon Text", sans-serif;
+  font-weight: bold;
+  font-size: 8px;
+  color: white;
+  opacity: 80%;
+}
+
+.card-sleeve .text-container {
+  position: absolute;
+  top: 224px;
+  left: 14px;
+  width: 81%;
+  height: 25%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.card-sleeve .text {
+  font-family: "Brandon Text", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  color: black;
+  line-height: 1;
+  letter-spacing: -0.45px;
+}
+
+.card-sleeve .text p:not(:first-child) {
+  margin-top: 3px;
+}
+
+.card-sleeve .text mark {
+  color: #fff;
+  background-color: #5a442c;
+  margin-left: -5px;
+  padding: 1px 6px 1px 4px;
+  font-weight: normal;
+  display: inline-block;
+  border-bottom-right-radius: 6px;
+}
+
+/*
+
+WIDTH : 240px
+Margin : 4px
+Description width : 198px
+text max-width 190px
+
+*/
+
+.img.radius {
+  border-radius: 2mm;
+}
+
+.card-back .img {
+  box-shadow: none;
+}
+
+@media print {
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+}
+
+.controls {
+  position: fixed;
+  top: 0;
+  right: 0;
+}
+
+.card-prompt {
+  padding: 3px;
+  min-width: 300px;
+  min-height: 350px;
+}
