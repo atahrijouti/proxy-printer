@@ -66,14 +66,25 @@ const clean = (text: string) => {
     text
       // remove unwanted \u0003 character
       .replace(new RegExp("\u0003", "g"), "")
+
       // remove line returns from text
       .replace(new RegExp("\n", "g"), " ")
+
       // remove repeated spaces
       .replace(new RegExp("\\s+", "g"), " ")
+
+      // move parens insisde of <i> tag
+      .replace(new RegExp("\\(<i>", "g"), "<i>(")
+      .replace(new RegExp("</i>\\)", "g"), ")</i>")
+
+      // move dot outside of <b> tag
+      .replace(new RegExp("\\.</b>", "g"), "</b>.")
+
+      // no bold for ⬡
+      .replace(new RegExp("<b>⬡</b>", "g"), "⬡")
+
       // remove spaces between tags
-      .replace(new RegExp("\\s+<", "g"), "<")
-      .replace(new RegExp(">\\s+", "g"), ">")
-    // TODO: Put Parentheses inside <i>
+      .replace(new RegExp(">\\s+<", "g"), "><")
   )
 }
 
