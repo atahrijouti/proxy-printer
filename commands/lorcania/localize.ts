@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises"
+import { readFile, writeFile } from "node:fs/promises"
 
 let currentType: string | null = null
 let currentIndex = 0
@@ -43,10 +43,7 @@ const program = async () => {
 
   const sortedAbilities = abilities.sort((a, b) => a.localeCompare(b))
 
-  console.log(
-    JSON.stringify(sortedAbilities, null, 2),
-    // `Total Abilities : ${sortedAbilities.length}`,
-  )
+  await writeFile("public/data/abilities.json", JSON.stringify(sortedAbilities, null, 2))
 }
 
 program()
