@@ -65,10 +65,10 @@ const Image = (card: Partial<Card>) => {
       <img src={card.imageUrl} className="img radius" />
       {card.overlays?.length &&
         card.overlays.map((overlay) => <Overlay key={overlay} url={overlay} />)}
-      <span className="name">{card.name}</span>
-      {card.title?.length && <span className="title">{card.title}</span>}
-      <span className="traits">{card.traits?.join(" • ")}</span>
-      <div className="text-container">
+      <span className="name overlay">{card.name}</span>
+      {card.title?.length && <span className="title overlay">{card.title}</span>}
+      <span className="traits overlay">{card.traits?.join(" • ")}</span>
+      <div className="text-container overlay">
         <div className="text" ref={textRef} dangerouslySetInnerHTML={{ __html: cardText }} />
       </div>
     </div>
