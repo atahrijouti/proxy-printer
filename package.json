@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "injest-lorcania": "tsx src/scripts/restructure-lorcania-json.ts"
+    "injest-lorcania": "tsx commands/lorcania/injest/index.ts"
   },
   "dependencies": {
     "@types/lodash": "^4.14.197",

@@ -1,6 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises"
-
-type LorcaniaCard = {
+export type LorcaniaCard = {
   name: string
   title: string
   cost: number
@@ -21,7 +19,7 @@ type LorcaniaCard = {
   traits: string[]
 }
 
-type Card = {
+export type Card = {
   id: string
   imageUrl: string
   color: string
@@ -42,26 +40,7 @@ type Card = {
   traits: LorcaniaCard["traits"]
 }
 
-const mapColor = (color: number) => {
-  switch (color) {
-    case 1:
-      return "ruby"
-    case 2:
-      return "sapphire"
-    case 3:
-      return "emerald"
-    case 4:
-      return "amber"
-    case 5:
-      return "amethyst"
-    case 6:
-      return "steel"
-    default:
-      throw new Error(`The color ${color} is not supported`)
-  }
-}
-
-const clean = (text: string) => {
+export const clean = (text: string) => {
   return (
     text
       // remove unwanted \u0003 character
@@ -85,10 +64,25 @@ const clean = (text: string) => {
 
       // remove spaces between tags
       .replace(new RegExp(">\\s+<", "g"), "><")
+
+      // add space between </b>|<i>
+      .replace(new RegExp("</b><i>", "g"), "</b> <i>")
+
+      // put reminder inside <i></i>
+      .replace(new RegExp("(<b>[^<]+</b>[\\s|\\+|\\d]+)(\\([^\\)]+\\))", "g"), "$1<i>$2</i>")
+
+      // replace dashes with em dash
+      .replace(new RegExp("- ", "g"), "\u2212 ")
+
+      // replace quirky quotes with single quotes
+      .replace(new RegExp("\u2018", "g"), "'")
+
+      // Add space before em dash
+      .replace(new RegExp("([^\\s]+)\u2212", "g"), "$1 \u2212")
   )
 }
 
-const keepDictFields = ({
+export const keepDictFields = ({
   name,
   title,
   cost,
@@ -116,7 +110,26 @@ const keepDictFields = ({
   rarity,
 })
 
-const getCardOverlays = (card: LorcaniaCard) => {
+export const mapColor = (color: number) => {
+  switch (color) {
+    case 1:
+      return "ruby"
+    case 2:
+      return "sapphire"
+    case 3:
+      return "emerald"
+    case 4:
+      return "amber"
+    case 5:
+      return "amethyst"
+    case 6:
+      return "steel"
+    default:
+      throw new Error(`The color ${color} is not supported`)
+  }
+}
+
+export const getCardOverlays = (card: LorcaniaCard) => {
   const overlays: string[] = []
   const color = mapColor(card.color)
   let overlayType = "action"
@@ -135,40 +148,3 @@ const getCardOverlays = (card: LorcaniaCard) => {
 
   return overlays
 }
-
-const program = async () => {
-  const file = await readFile("public/data/lorcania-cards.json", "utf8")
-  const json = JSON.parse(file) as LorcaniaCard[]
-  const cards = json
-    .filter((card) => card.pack === "204")
-    .filter((card) => card.rarity !== "enchanted")
-    .sort((a, b) => a.number - b.number)
-    .reduce<{ [index: string]: Card }>((acc, card) => {
-      let id = `${card.name.toLowerCase()}`
-      if (card.title) {
-        id += ` - ${card.title.toLowerCase()}`
-      }
-
-      const { name, title, traits, ...rest } = keepDictFields(card)
-
-      acc[id] = {
-        name,
-        title,
-        traits,
-        text: clean(card.action ?? ""),
-        inkwell: !!card.inkwell,
-        id,
-        color: mapColor(card.color),
-        imageUrl: encodeURI(`/cards/lorcana/${`${card.number}`.padStart(4, "0")}.jpg`),
-        overlays: getCardOverlays(card),
-        ...rest,
-      }
-
-      return acc
-    }, {})
-
-  // console.log(JSON.stringify(cards))
-  await writeFile("public/data/lorcana-proxy-cards.json", JSON.stringify(cards, null, 2))
-}
-
-program()
