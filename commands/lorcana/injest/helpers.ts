@@ -22,23 +22,28 @@ export type LorcaniaCard = {
 export type Card = {
   id: string
   imageUrl: string
-  color: string
+  // color: string
   text: string
-  inkwell: boolean
+  abilities: string[] | null
+  // inkwell: boolean
   overlays: string[]
   name: LorcaniaCard["name"]
   title: LorcaniaCard["title"]
-  cost: LorcaniaCard["cost"]
-  attack: LorcaniaCard["attack"]
-  defence: LorcaniaCard["defence"]
-  type: LorcaniaCard["type"]
-  flavour: LorcaniaCard["flavour"]
-  separator: LorcaniaCard["separator"]
-  stars: LorcaniaCard["stars"]
-  number: LorcaniaCard["number"]
-  rarity: LorcaniaCard["rarity"]
+  // cost: LorcaniaCard["cost"]
+  // attack: LorcaniaCard["attack"]
+  // defence: LorcaniaCard["defence"]
+  // type: LorcaniaCard["type"]
+  // flavour: LorcaniaCard["flavour"]
+  // separator: LorcaniaCard["separator"]
+  // stars: LorcaniaCard["stars"]
+  // number: LorcaniaCard["number"]
+  // rarity: LorcaniaCard["rarity"]
   traits: LorcaniaCard["traits"]
 }
+
+export type CardDict = { [index: string]: Card }
+
+export type LocaleDict = { [index: string]: string }
 
 export const clean = (text: string) => {
   return (
@@ -85,29 +90,29 @@ export const clean = (text: string) => {
 export const keepDictFields = ({
   name,
   title,
-  cost,
-  attack,
-  defence,
-  type,
-  flavour,
-  separator,
-  stars,
-  number,
-  rarity,
+  // cost,
+  // attack,
+  // defence,
+  // type,
+  // flavour,
+  // separator,
+  // stars,
+  // number,
+  // rarity,
   traits,
 }: LorcaniaCard) => ({
   name,
   title,
   traits,
-  flavour: flavour ? clean(flavour) : null,
-  cost,
-  attack,
-  defence,
-  type,
-  separator,
-  stars,
-  number,
-  rarity,
+  // flavour: flavour ? clean(flavour) : null,
+  // cost,
+  // attack,
+  // defence,
+  // type,
+  // separator,
+  // stars,
+  // number,
+  // rarity,
 })
 
 export const mapColor = (color: number) => {
@@ -147,4 +152,18 @@ export const getCardOverlays = (card: LorcaniaCard) => {
   overlays.push(`/overlays/${color}-${overlayType}.png`)
 
   return overlays
+}
+
+export const abilitiesFromText = (text: string) => {
+  if (!text.trim().length) {
+    return null
+  }
+  return text.split("<br>").map((ability: string) => `${ability.trim()}`)
+}
+
+export const toUpperCaseSlug = (text: string) => {
+  return text
+    .toUpperCase()
+    .replace(/ /g, "_")
+    .replace(/[^\w_]+/g, "")
 }

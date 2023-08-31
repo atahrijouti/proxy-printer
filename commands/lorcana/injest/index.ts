@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises"
-import { Card, LorcaniaCard, clean, getCardOverlays, keepDictFields, mapColor } from "./helpers"
+import { CardDict, LorcaniaCard, abilitiesFromText, clean, getCardOverlays } from "./helpers"
 
 const program = async () => {
   const file = await readFile("public/data/lorcania-cards.json", "utf8")
@@ -8,25 +8,29 @@ const program = async () => {
     .filter((card) => card.pack === "204")
     .filter((card) => card.rarity !== "enchanted")
     .sort((a, b) => a.number - b.number)
-    .reduce<{ [index: string]: Card }>((acc, card) => {
+    .reduce<CardDict>((acc, card) => {
       let id = `${card.name.toLowerCase()}`
       if (card.title) {
         id += ` - ${card.title.toLowerCase()}`
       }
 
-      const { name, title, traits, ...rest } = keepDictFields(card)
+      // const { name, title, traits, ...rest } = keepDictFields(card)
+      const { name, title, traits } = card
+
+      const text = clean(card.action ?? "")
 
       acc[id] = {
         name,
         title,
         traits,
-        text: clean(card.action ?? ""),
-        inkwell: !!card.inkwell,
+        text,
+        abilities: abilitiesFromText(text),
         id,
-        color: mapColor(card.color),
         imageUrl: encodeURI(`/cards/lorcana/${`${card.number}`.padStart(4, "0")}.jpg`),
         overlays: getCardOverlays(card),
-        ...rest,
+        // inkwell: !!card.inkwell,
+        // color: mapColor(card.color),
+        // ...rest,
       }
 
       return acc

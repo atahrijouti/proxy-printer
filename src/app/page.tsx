@@ -14,20 +14,20 @@ type CardDict = {
 type Card = {
   id: string
   imageUrl: string
-  color: string
+  // color: string
   text: string
   name: string
   title: string
-  cost: number
-  inkwell: boolean
-  attack: number
-  defence: number
-  type: string
-  flavour: string | null
-  separator: string | null
-  stars: number
-  number: number
-  rarity: string
+  // cost: number
+  // inkwell: boolean
+  // attack: number
+  // defence: number
+  // type: string
+  // flavour: string | null
+  // separator: string | null
+  // stars: number
+  // number: number
+  // rarity: string
   traits: string[]
   overlays: string[]
 }
