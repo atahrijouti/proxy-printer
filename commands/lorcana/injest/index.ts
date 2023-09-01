@@ -1,10 +1,11 @@
 import { readFile, writeFile } from "node:fs/promises"
-import { CardDict, LorcaniaCard, abilitiesFromText, clean, getCardOverlays } from "./helpers"
+import { CardDict, LorcaniaJson, abilitiesFromText, clean, getCardOverlays } from "./helpers"
 
 const program = async () => {
   const file = await readFile("public/data/lorcania-cards.json", "utf8")
-  const json = JSON.parse(file) as LorcaniaCard[]
-  const cards = json
+  const json = JSON.parse(file) as LorcaniaJson
+
+  const cards = json.cards
     .filter((card) => card.pack === "204")
     .filter((card) => card.rarity !== "enchanted")
     .sort((a, b) => a.number - b.number)

@@ -1,3 +1,7 @@
+export type LorcaniaJson = {
+  cards: LorcaniaCard[]
+}
+
 export type LorcaniaCard = {
   name: string
   title: string
@@ -7,7 +11,7 @@ export type LorcaniaCard = {
   defence: number
   color: number
   type: string
-  action: string
+  action: string | null
   flavour: string | null
   separator: string | null
   stars: number
