@@ -26,22 +26,22 @@ export type LorcaniaCard = {
 export type Card = {
   id: string
   imageUrl: string
-  // color: string
+  color: string
   text: string
   abilities: string[] | null
-  // inkwell: boolean
+  inkwell: boolean
   overlays: string[]
   name: LorcaniaCard["name"]
   title: LorcaniaCard["title"]
-  // cost: LorcaniaCard["cost"]
-  // attack: LorcaniaCard["attack"]
-  // defence: LorcaniaCard["defence"]
-  // type: LorcaniaCard["type"]
-  // flavour: LorcaniaCard["flavour"]
-  // separator: LorcaniaCard["separator"]
-  // stars: LorcaniaCard["stars"]
-  // number: LorcaniaCard["number"]
-  // rarity: LorcaniaCard["rarity"]
+  cost: LorcaniaCard["cost"]
+  attack: LorcaniaCard["attack"]
+  defence: LorcaniaCard["defence"]
+  type: LorcaniaCard["type"]
+  flavour: LorcaniaCard["flavour"]
+  separator: LorcaniaCard["separator"]
+  stars: LorcaniaCard["stars"]
+  number: LorcaniaCard["number"]
+  rarity: LorcaniaCard["rarity"]
   traits: LorcaniaCard["traits"]
 }
 
@@ -52,6 +52,9 @@ export type LocaleDict = { [index: string]: string }
 export const clean = (text: string) => {
   return (
     text
+      // unify <br />
+      .replace(new RegExp("<br\\s*>", "g"), "<br />")
+
       // remove unwanted \u0003 character
       .replace(new RegExp("\u0003", "g"), "")
 
@@ -94,29 +97,29 @@ export const clean = (text: string) => {
 export const keepDictFields = ({
   name,
   title,
-  // cost,
-  // attack,
-  // defence,
-  // type,
-  // flavour,
-  // separator,
-  // stars,
-  // number,
-  // rarity,
+  cost,
+  attack,
+  defence,
+  type,
+  flavour,
+  separator,
+  stars,
+  number,
+  rarity,
   traits,
 }: LorcaniaCard) => ({
   name,
   title,
   traits,
-  // flavour: flavour ? clean(flavour) : null,
-  // cost,
-  // attack,
-  // defence,
-  // type,
-  // separator,
-  // stars,
-  // number,
-  // rarity,
+  flavour: flavour ? clean(flavour) : null,
+  cost,
+  attack,
+  defence,
+  type,
+  separator,
+  stars,
+  number,
+  rarity,
 })
 
 export const mapColor = (color: number) => {
@@ -162,7 +165,7 @@ export const abilitiesFromText = (text: string) => {
   if (!text.trim().length) {
     return null
   }
-  return text.split("<br>").map((ability: string) => `${ability.trim()}`)
+  return text.split("<br />").map((ability: string) => `${ability.trim()}`)
 }
 
 export const toUpperCaseSlug = (text: string) => {
