@@ -47,7 +47,7 @@ const program = async () => {
     }, {})
 
   // console.log(JSON.stringify(cards))
-  await writeFile("public/data/lorcana-proxy-cards.json", JSON.stringify(cards, null, 2))
+  await writeFile("public/data/lorcana-db.json", JSON.stringify(cards, null, 2))
 }
 
 program()
