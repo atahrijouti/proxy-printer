@@ -155,7 +155,7 @@ export default () => {
   const [isCardBack, setIsCardBack] = useState(false)
   const [deckName, setDeckName] = useState("Deck")
   const [displayedCards, setDisplayedCards] = useState<Card[]>([])
-  const [dictUrl, setDictUrl] = useState<string>("/data/lorcana-proxy-cards.json")
+  const [dictUrl, setDictUrl] = useState<string>("/proxy-dbs/lorcana/proxy-db.json")
   const [cardDict, setCardDict] = useState<{ [index: string]: Card }>({})
   const [cardPrompt, setCardPrompt] = useState<string>(`1 Fire The Cannons!`)
 
