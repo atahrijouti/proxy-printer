@@ -54,11 +54,6 @@ const Image = (card: Partial<Card>) => {
     console.log(parent, height)
     node.style.setProperty("font-size", "9px")
   }, [])
-  const cardText =
-    card.text
-      ?.split("<br>")
-      .map((text) => `<p>${text}</p>`)
-      .join("") ?? ""
 
   return (
     <div className={`card-sleeve ${card.type ?? ""}`}>
@@ -69,7 +64,7 @@ const Image = (card: Partial<Card>) => {
       {card.title?.length && <span className="title overlay">{card.title}</span>}
       <span className="traits overlay">{card.traits?.join(" • ")}</span>
       <div className="text-container overlay">
-        <div className="text" ref={textRef} dangerouslySetInnerHTML={{ __html: cardText }} />
+        <div className="text" ref={textRef} dangerouslySetInnerHTML={{ __html: card.text ?? "" }} />
       </div>
     </div>
   )
@@ -155,9 +150,12 @@ export default () => {
   const [isCardBack, setIsCardBack] = useState(false)
   const [deckName, setDeckName] = useState("Deck")
   const [displayedCards, setDisplayedCards] = useState<Card[]>([])
-  const [dictUrl, setDictUrl] = useState<string>("/projects/lorcana/db.json")
+  const [dictUrl, setDictUrl] = useState<string>("/projects/lorcana/db-sv.json")
   const [cardDict, setCardDict] = useState<{ [index: string]: Card }>({})
-  const [cardPrompt, setCardPrompt] = useState<string>(`1 Fire The Cannons!`)
+  const [cardPrompt, setCardPrompt] = useState<string>(
+    `1 Ariel - Spectacular Singer
+1 Goofy - Musketeer`
+  )
 
   useEffect(() => {
     fetchDict()
