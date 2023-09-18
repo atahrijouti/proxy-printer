@@ -115,7 +115,7 @@ const CardBackList = () => {
   return (
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
-        imageUrl: "/cards/lorcana/card-back.jpg",
+        imageUrl: "/projects/lorcana/images/card-back.jpg",
         id: "Card Back",
       }))}
     />
@@ -155,7 +155,7 @@ export default () => {
   const [isCardBack, setIsCardBack] = useState(false)
   const [deckName, setDeckName] = useState("Deck")
   const [displayedCards, setDisplayedCards] = useState<Card[]>([])
-  const [dictUrl, setDictUrl] = useState<string>("/proxy-dbs/lorcana/proxy-db.json")
+  const [dictUrl, setDictUrl] = useState<string>("/projects/lorcana/db.json")
   const [cardDict, setCardDict] = useState<{ [index: string]: Card }>({})
   const [cardPrompt, setCardPrompt] = useState<string>(`1 Fire The Cannons!`)
 

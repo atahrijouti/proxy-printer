@@ -42,7 +42,7 @@ body {
     var(--page-left-margin) + var(--cardback-margin-offset) - calc(2 * var(--gap-size))
   );
   /*box-shadow: 0 0 0 var(--cardback-group-extra-background) var(--cardback-border);*/
-  background: url("/cards/lorcana/cardback-background.png");
+  background: url("/projects/lorcana/images/cardback-background.png");
 }
 
 .rtl {
