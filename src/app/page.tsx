@@ -110,7 +110,7 @@ const CardBackList = () => {
   return (
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
-        imageUrl: "/projects/lorcana/images/card-back.jpg",
+        imageUrl: "/proxy-dbs/projects/lorcana/images/card-back.jpg",
         id: "Card Back",
       }))}
     />
@@ -150,11 +150,11 @@ export default () => {
   const [isCardBack, setIsCardBack] = useState(false)
   const [deckName, setDeckName] = useState("Deck")
   const [displayedCards, setDisplayedCards] = useState<Card[]>([])
-  const [dictUrl, setDictUrl] = useState<string>("/projects/lorcana/db-sv.json")
+  const [dictUrl, setDictUrl] = useState<string>("/proxy-dbs/projects/lorcana/db-sv.json")
   const [cardDict, setCardDict] = useState<{ [index: string]: Card }>({})
   const [cardPrompt, setCardPrompt] = useState<string>(
     `1 Ariel - Spectacular Singer
-1 Goofy - Musketeer`
+1 Goofy - Musketeer`,
   )
 
   useEffect(() => {
