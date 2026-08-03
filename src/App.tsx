@@ -13,8 +13,9 @@ import "./fonts.css";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
-let PP_OVERLAY_URL = "http://localhost:8787/images/overlays";
-let PP_CARD_IMAGE_URL = "http://localhost:8787/images/card-front";
+let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
+let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
+let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
 
 type Card = {
   id: string;
@@ -43,7 +44,7 @@ type PageData = {
 
 const Overlay: Component<{ url: string }> = (props) => {
   return (
-    <img src={`${PP_OVERLAY_URL}/${props.url}`} class="img overlay radius" />
+    <img src={`${PP_OVER_FOLDER}/${props.url}`} class="img overlay radius" />
   );
 };
 
@@ -65,7 +66,7 @@ const Image: Component<Partial<Card>> = (props) => {
 
   return (
     <div class={`card-sleeve ${(props as { type?: string }).type ?? ""}`}>
-      <img src={`${PP_CARD_IMAGE_URL}/${props.imageUrl}`} class="img radius" />
+      <img src={`${props.imageUrl}`} class="img radius" />
       <For each={props.overlays}>{(overlay) => <Overlay url={overlay} />}</For>
       <span class="name overlay">{props.name}</span>
       <Show when={props.version?.length}>
@@ -103,11 +104,11 @@ const CardList: Component<{ list: Card[] }> = (props) => {
   return <For each={pages()}>{(page) => <Page cards={page.cards} />}</For>;
 };
 
-const CardBackList: Component<{ imageUrl: string }> = ({ imageUrl }) => {
+const CardBackList: Component = () => {
   return (
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
-        imageUrl,
+        imageUrl: PP_CARD_BACK_URL,
         id: "Card Back",
       }))}
     />
@@ -145,7 +146,6 @@ const mapPrompt = (db: Card[], prompt: string) => {
 
 const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
-  const [cardBackUrl, setCardBackUrl] = createSignal("");
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
   const [dictUrl, setDictUrl] = createSignal<string>(
@@ -158,10 +158,18 @@ const App: Component = () => {
   );
 
   const processDict = (data: any) => {
-    setCardBackUrl(`${data.baseUrl}/images/card-back.jpg`);
-    setCardDict(data.cards);
-    PP_OVERLAY_URL = `${data.baseUrl}/${data.overlayPath}`;
-    PP_CARD_IMAGE_URL = `${data.baseUrl}/${data.cardPath}`;
+    setCardDict(
+      data.cards.map((card: Card) => {
+        return {
+          ...card,
+          imageUrl: `${PP_CARD_FRONT_FOLDER}/${card.imageUrl}`,
+        };
+      }),
+    );
+
+    PP_CARD_BACK_URL = `${data.baseUrl}/images/card-back.jpg`;
+    PP_OVER_FOLDER = `${data.baseUrl}/${data.overlayPath}`;
+    PP_CARD_FRONT_FOLDER = `${data.baseUrl}/${data.cardPath}`;
   };
 
   const fetchDict = _debounce((url: string) => {
@@ -241,7 +249,7 @@ const App: Component = () => {
           when={isCardBack()}
           fallback={<CardList list={displayedCards()} />}
         >
-          <CardBackList imageUrl={cardBackUrl()} />
+          <CardBackList />
         </Show>
       </main>
     </>

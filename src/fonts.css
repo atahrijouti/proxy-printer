@@ -1,7 +1,7 @@
 /* Name */
 @font-face {
     font-family: "The Bystander Collection Sans Medium";
-    src: url("http://localhost:8787/assets/fonts/lorcana/the-bystander-collection-sans-medium.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/BystanderSans-Medium.woff2")
         format("woff2");
     font-style: normal;
     font-weight: 500;
@@ -11,7 +11,7 @@
 /* Version */
 @font-face {
     font-family: "Brandon Text Condensed Bold";
-    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-bold.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/brandon-text-condensed-bold.woff2")
         format("woff2");
     font-style: normal;
     font-weight: 700;
@@ -21,7 +21,7 @@
 /* Keyword Sub-types */
 @font-face {
     font-family: "Brandon Text Condensed Black Italic";
-    src: url("./assets/fonts/lorcana/brandon-text-condensed-black-italic.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/brandon-text-condensed-black-italic.woff2")
         format("woff2");
     font-style: italic;
     font-weight: 900;
@@ -31,7 +31,7 @@
 /* Keyword Ability Name */
 @font-face {
     font-family: "Brandon Text Condensed Black";
-    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-black.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/brandon-text-condensed-black.woff2")
         format("woff2");
     font-style: normal;
     font-weight: 900;
@@ -41,7 +41,7 @@
 /* Keyword Ability Reminder */
 @font-face {
     font-family: "Brandon Text Condensed Medium Italic";
-    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-medium-italic.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/brandon-text-condensed-medium-italic.woff2")
         format("woff2");
     font-style: italic;
     font-weight: 500;
@@ -50,19 +50,60 @@
 
 @font-face {
     font-family: "Bogle";
-    src:
-        url("http://localhost:8787/assets/fonts/lorcana/bogle.woff2")
-            format("woff2"),
-        url("http://localhost:8787/assets/fonts/lorcana/bbh-sans-bogle.woff2")
-            format("woff2");
     font-style: normal;
     font-weight: 400;
-    font-display: swap;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEREGULAR.woff")
+            format("woff");
+}
+@font-face {
+    font-family: "Bogle";
+    font-style: italic;
+    font-weight: 400;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEITALIC.woff")
+            format("woff");
+}
+@font-face {
+    font-family: "Bogle";
+    font-style: normal;
+    font-weight: 700;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEBOLD.woff") format("woff");
+}
+@font-face {
+    font-family: "Bogle";
+    font-style: italic;
+    font-weight: 700;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEBOLDITALIC.woff")
+            format("woff");
+}
+@font-face {
+    font-family: "Bogle";
+    font-style: normal;
+    font-weight: 900;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEBLACK.woff") format("woff");
+}
+@font-face {
+    font-family: "Bogle";
+    font-style: italic;
+    font-weight: 900;
+    src:
+        local("Bogle"),
+        url("http://127.0.0.1:8787/assets/fonts/BOGLEBLACKITALIC.woff")
+            format("woff");
 }
 
 @font-face {
     font-family: "BBH Sans Bogle";
-    src: url("http://localhost:8787/assets/fonts/lorcana/bbh-sans-bogle.woff2")
+    src: url("http://127.0.0.1:8787/assets/fonts/bbh-sans-bogle.woff2")
         format("woff2");
     font-style: normal;
     font-weight: 400;

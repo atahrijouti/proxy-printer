@@ -11,6 +11,7 @@
 
     --lorcana-font-fallback-bogle:
         "Bogle", "Trebuchet MS", "Segoe UI", sans-serif;
+    /*--lorcana-font-fallback-bogle: "Trebuchet MS", "Segoe UI", sans-serif;*/
     --lorcana-font-card-name:
         "The Bystander Collection Sans Medium",
         var(--lorcana-font-fallback-bogle);
@@ -19,7 +20,7 @@
     --lorcana-font-card-subtypes:
         "Brandon Text Condensed Black Italic",
         var(--lorcana-font-fallback-bogle);
-    --lorcana-font-keyword-title:
+    --lorcana-font-keyword-name:
         "Brandon Text Condensed Black", var(--lorcana-font-fallback-bogle);
     --lorcana-font-keyword-reminder:
         "Brandon Text Condensed Medium Italic",
@@ -135,8 +136,13 @@ body {
     flex-direction: column;
 }
 
+.card-sleeve .text br {
+    content: " ";
+    margin-top: 10px;
+    display: block;
+}
 .card-sleeve .text {
-    font-family: "Brandon Text", sans-serif;
+    font-family: var(--lorcana-font-fallback-bogle), sans-serif;
     font-size: 10px;
     font-weight: 500;
     color: black;
@@ -153,6 +159,7 @@ body {
     background-color: #5a442c;
     margin-left: -5px;
     padding: 1px 6px 1px 4px;
+    font-family: var(--lorcana-font-keyword-name);
     font-weight: normal;
     display: inline-block;
     border-bottom-right-radius: 6px;
