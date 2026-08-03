@@ -1,0 +1,70 @@
+/* Name */
+@font-face {
+    font-family: "The Bystander Collection Sans Medium";
+    src: url("http://localhost:8787/assets/fonts/lorcana/the-bystander-collection-sans-medium.woff2")
+        format("woff2");
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+}
+
+/* Version */
+@font-face {
+    font-family: "Brandon Text Condensed Bold";
+    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-bold.woff2")
+        format("woff2");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
+/* Keyword Sub-types */
+@font-face {
+    font-family: "Brandon Text Condensed Black Italic";
+    src: url("./assets/fonts/lorcana/brandon-text-condensed-black-italic.woff2")
+        format("woff2");
+    font-style: italic;
+    font-weight: 900;
+    font-display: swap;
+}
+
+/* Keyword Ability Name */
+@font-face {
+    font-family: "Brandon Text Condensed Black";
+    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-black.woff2")
+        format("woff2");
+    font-style: normal;
+    font-weight: 900;
+    font-display: swap;
+}
+
+/* Keyword Ability Reminder */
+@font-face {
+    font-family: "Brandon Text Condensed Medium Italic";
+    src: url("http://localhost:8787/assets/fonts/lorcana/brandon-text-condensed-medium-italic.woff2")
+        format("woff2");
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Bogle";
+    src:
+        url("http://localhost:8787/assets/fonts/lorcana/bogle.woff2")
+            format("woff2"),
+        url("http://localhost:8787/assets/fonts/lorcana/bbh-sans-bogle.woff2")
+            format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "BBH Sans Bogle";
+    src: url("http://localhost:8787/assets/fonts/lorcana/bbh-sans-bogle.woff2")
+        format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}

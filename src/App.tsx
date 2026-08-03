@@ -9,6 +9,7 @@ import {
 } from "solid-js";
 import _debounce from "lodash/debounce";
 
+import "./fonts.css";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
