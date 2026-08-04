@@ -84,7 +84,7 @@ body {
 
 .card-sleeve .name {
     position: absolute;
-    top: 48.3mm;
+    top: 48.4mm;
     left: 3.5mm;
     font-family: var(--lorcana-font-card-name);
     /*font-size: 18px;*/
@@ -93,15 +93,15 @@ body {
     line-height: 1;
     text-box: trim-both cap alphabetic;
     font-weight: 500;
-    /*color: deeppink;*/
     color: white;
+    /*color: deeppink;*/
     text-transform: uppercase;
 }
 
 .card-sleeve.item .name,
 .card-sleeve.song .name,
 .card-sleeve.action .name {
-    top: 49.6mm;
+    top: 49.7mm;
     left: 0;
     width: 100%;
     text-align: center;
@@ -110,13 +110,16 @@ body {
 .card-sleeve .title {
     position: absolute;
     /*top: 196px;*/
-    top: 51.9mm;
+    top: 52.4mm;
     /*left: 14px;*/
-    left: 3.7mm;
+    left: 3.5mm;
     font-family: var(--lorcana-font-card-version);
-    color: white;
-    /*font-size: 9px;*/
     font-size: 2.381mm;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
+    color: white;
+    /*color: black;*/
+    /*font-size: 9px;*/
 }
 
 .card-sleeve .traits {
