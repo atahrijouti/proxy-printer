@@ -16,6 +16,7 @@ const CARDS_PER_PAGE = 9;
 let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
 let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
 let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
+let PP_SYMBOLS_URL = "http://localhost:8787/images/symbols";
 const STARTING_URL = "http://localhost:8787/db-sv.json";
 const STARTING_DECK = ``;
 
@@ -150,6 +151,23 @@ const mapPrompt = (db: Card[], prompt: string) => {
   return cards;
 };
 
+const replaceGlyphs = (fullText?: string) => {
+  if (fullText == null) {
+    return undefined;
+  }
+  const G: Record<string, string> = {
+    "⟳": "exert",
+    "⬡": "ink",
+    "◊": "lore",
+    "¤": "strength",
+  };
+  return fullText.replace(
+    /[⟳⬡◊¤]/g,
+    (s) =>
+      `<img src="${PP_SYMBOLS_URL}/${G[s]}.svg" alt="${G[s]}" class="glyph">`,
+  );
+};
+
 const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
   const [deckName, setDeckName] = createSignal("Deck");
@@ -164,6 +182,7 @@ const App: Component = () => {
         return {
           ...card,
           imageUrl: `${PP_CARD_FRONT_FOLDER}/${card.imageUrl}`,
+          fullText: replaceGlyphs(card.fullText),
         };
       }),
     );

@@ -188,6 +188,13 @@ body {
     text-transform: uppercase;
 }
 
+.card-sleeve .glyph {
+    height: 1em;
+    vertical-align: -0.17em;
+    width: auto;
+    height: 0.92em;
+}
+
 /*
 
 WIDTH : 240px
