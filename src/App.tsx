@@ -24,6 +24,7 @@ type Card = {
   name: string;
   version: string;
   type: string;
+  classification: string;
   subtypes: string[];
   overlays: string[];
   // cost: number
@@ -65,14 +66,16 @@ const Image: Component<Partial<Card>> = (props) => {
   });
 
   return (
-    <div class={`card-sleeve ${(props as { type?: string }).type ?? ""}`}>
+    <div
+      class={`card-sleeve ${(props as { type?: string }).type?.toLowerCase() ?? ""}`}
+    >
       <img src={`${props.imageUrl}`} class="img radius" />
       <For each={props.overlays}>{(overlay) => <Overlay url={overlay} />}</For>
       <span class="name overlay">{props.name}</span>
       <Show when={props.version?.length}>
         <span class="title overlay">{props.version}</span>
       </Show>
-      <span class="traits overlay">{props.subtypes?.join(" • ")}</span>
+      <span class="traits overlay">{props.classification}</span>
       <div class="text-container overlay">
         <div class="text" ref={textEl} innerHTML={props.fullText ?? ""} />
       </div>
