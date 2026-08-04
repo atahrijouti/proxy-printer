@@ -9,80 +9,38 @@ import {
 } from "solid-js";
 import _debounce from "lodash/debounce";
 
-import "./fonts.css";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
-let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
-let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
 let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
-let PP_SYMBOLS_URL = "http://localhost:8787/images/symbols";
-const STARTING_URL = "http://localhost:8787/db-sv.json";
-const STARTING_DECK = ``;
+const STARTING_URL = "http://localhost:8787/db-sv-print.json";
+const STARTING_DECK = `1 Tinker Bell - Giant Fairy
+1 Genie - Powers Unleashed
+`;
+
+const [data, setData] = createSignal({ cards: [] } as DB);
 
 type Card = {
   id: string;
   imageUrl: string;
-  fullText: string;
-  name: string;
-  version: string;
-  type: string;
-  classification: string;
-  subtypes: string[];
   overlays: string[];
-  lore?: number;
-  // cost: number
-  // inkwell: boolean
-  // attack: number
-  // defence: number
-  // color: string
-  // flavour: string | null
-  // separator: string | null
-  // stars: number
-  // number: number
-  // rarity: string
+};
+
+type DB = {
+  stylesUrl?: string;
+  cardbackUrl?: string;
+  cards: Card[];
 };
 
 type PageData = {
   cards: Partial<Card>[];
 };
 
-const Overlay: Component<{ url: string }> = (props) => {
-  return (
-    <img src={`${PP_OVER_FOLDER}/${props.url}`} class="img overlay radius" />
-  );
-};
-
 const Image: Component<Partial<Card>> = (props) => {
-  let textEl: HTMLDivElement | undefined;
-
-  onMount(() => {
-    if (!textEl) {
-      return;
-    }
-
-    const height = textEl.clientHeight;
-    if (height < 88) {
-      return;
-    }
-    console.log(textEl.parentElement, height);
-    textEl.style.setProperty("font-size", "9px");
-  });
-
   return (
-    <div
-      class={`card-sleeve ${props.type?.toLowerCase() ?? ""} ${props.lore == null ? "no-lore" : ""}`}
-    >
+    <div class="card-sleeve">
       <img src={`${props.imageUrl}`} class="img radius" />
-      <For each={props.overlays}>{(overlay) => <Overlay url={overlay} />}</For>
-      <span class="name overlay">{props.name}</span>
-      <Show when={props.version?.length}>
-        <span class="title overlay">{props.version}</span>
-      </Show>
-      <span class="traits overlay">{props.classification}</span>
-      <div class="text-container overlay">
-        <div class="text" ref={textEl} innerHTML={props.fullText ?? ""} />
-      </div>
+      <div innerHTML={props.overlays?.join("") ?? ""} />
     </div>
   );
 };
@@ -151,55 +109,21 @@ const mapPrompt = (db: Card[], prompt: string) => {
   return cards;
 };
 
-const replaceGlyphs = (fullText?: string) => {
-  if (fullText == null) {
-    return undefined;
-  }
-  const G: Record<string, string> = {
-    "⟳": "exert",
-    "⬡": "ink",
-    "◊": "lore",
-    "¤": "strength",
-  };
-  return fullText.replace(
-    /[⟳⬡◊¤]/g,
-    (s) =>
-      `<img src="${PP_SYMBOLS_URL}/${G[s]}.svg" alt="${G[s]}" class="glyph">`,
-  );
-};
-
 const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
   const [dictUrl, setDictUrl] = createSignal<string>(STARTING_URL);
-  const [cardDict, setCardDict] = createSignal<Card[]>([]);
   const [cardPrompt, setCardPrompt] = createSignal<string>(STARTING_DECK);
-
-  const processDict = (data: any) => {
-    setCardDict(
-      data.cards.map((card: Card) => {
-        return {
-          ...card,
-          imageUrl: `${PP_CARD_FRONT_FOLDER}/${card.imageUrl}`,
-          fullText: replaceGlyphs(card.fullText),
-        };
-      }),
-    );
-
-    PP_CARD_BACK_URL = `${data.baseUrl}/images/card-back.jpg`;
-    PP_OVER_FOLDER = `${data.baseUrl}/${data.overlayPath}`;
-    PP_CARD_FRONT_FOLDER = `${data.baseUrl}/${data.cardPath}`;
-  };
 
   const fetchDict = _debounce((url: string) => {
     const asyncCall = async () => {
       try {
         const response = await fetch(url);
         const data = await response.json();
-        processDict(data);
+        setData(data);
       } catch (e) {
-        setCardDict([]);
+        setData({ cards: [] });
         console.log("couldn't fetch json");
       }
     };
@@ -225,7 +149,7 @@ const App: Component = () => {
   });
 
   createEffect(() => {
-    rebuildList(cardDict(), cardPrompt());
+    rebuildList(data().cards, cardPrompt());
   });
 
   return (
@@ -265,6 +189,9 @@ const App: Component = () => {
         </div>
       </aside>
       <main>
+        <Show when={data().stylesUrl != ""}>
+          <link href={data().stylesUrl} rel="stylesheet" />
+        </Show>
         <Show
           when={isCardBack()}
           fallback={<CardList list={displayedCards()} />}
