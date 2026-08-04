@@ -12,7 +12,6 @@ import _debounce from "lodash/debounce";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
-let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
 const STARTING_URL = "http://localhost:8787/db-sv-print.json";
 const STARTING_DECK = `1 Tinker Bell - Giant Fairy
 1 Genie - Powers Unleashed
@@ -28,7 +27,7 @@ type Card = {
 
 type DB = {
   stylesUrl?: string;
-  cardbackUrl?: string;
+  cardBackUrl?: string;
   cards: Card[];
 };
 
@@ -73,7 +72,7 @@ const CardBackList: Component = () => {
   return (
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
-        imageUrl: PP_CARD_BACK_URL,
+        imageUrl: data().cardBackUrl,
         id: "Card Back",
       }))}
     />
@@ -189,7 +188,7 @@ const App: Component = () => {
         </div>
       </aside>
       <main>
-        <Show when={data().stylesUrl != ""}>
+        <Show when={data().stylesUrl}>
           <link href={data().stylesUrl} rel="stylesheet" />
         </Show>
         <Show
