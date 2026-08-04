@@ -84,11 +84,16 @@ body {
 
 .card-sleeve .name {
     position: absolute;
-    top: 176px;
-    left: 14px;
+    top: 48.3mm;
+    left: 3.5mm;
     font-family: var(--lorcana-font-card-name);
-    font-size: 18px;
+    /*font-size: 18px;*/
+    font-size: 4.75mm;
+    letter-spacing: 0.03mm;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
     font-weight: 500;
+    /*color: deeppink;*/
     color: white;
     text-transform: uppercase;
 }
@@ -96,7 +101,7 @@ body {
 .card-sleeve.item .name,
 .card-sleeve.song .name,
 .card-sleeve.action .name {
-    top: 182px;
+    top: 49.6mm;
     left: 0;
     width: 100%;
     text-align: center;
@@ -104,32 +109,48 @@ body {
 
 .card-sleeve .title {
     position: absolute;
-    top: 196px;
-    left: 14px;
+    /*top: 196px;*/
+    top: 51.9mm;
+    /*left: 14px;*/
+    left: 3.7mm;
     font-family: var(--lorcana-font-card-version);
     color: white;
-    font-size: 9px;
+    /*font-size: 9px;*/
+    font-size: 2.381mm;
 }
 
 .card-sleeve .traits {
     position: absolute;
-    top: 210px;
+    top: 56.3mm;
     left: 0;
     width: 100%;
     text-align: center;
     font-family: var(--lorcana-font-card-subtypes);
     font-weight: bold;
-    font-size: 8px;
+    font-style: italic;
+    /*font-size: 8px;*/
+    font-size: 2.41mm;
+    letter-spacing: -0.11mm;
+    line-height: 1;
+    text-box: trim-both cap alphabetic;
     color: white;
+    /*color: red;*/
     opacity: 80%;
 }
 
 .card-sleeve .text-container {
     position: absolute;
-    top: 224px;
-    left: 14px;
-    width: 81%;
-    height: 25%;
+    /*background-color: greenyellow;*/
+    --left: 3.8mm;
+    --y-start: 59.4mm;
+    --y-end: 81.4mm;
+    top: var(--y-start);
+    left: var(--left);
+    width: 51.3mm;
+    .no-lore & {
+        width: 55.5mm;
+    }
+    height: calc(var(--y-end) - var(--y-start));
     display: flex;
     justify-content: center;
     flex-direction: column;
@@ -137,22 +158,26 @@ body {
 
 .card-sleeve .text {
     font-family: var(--lorcana-font-fallback-bogle), sans-serif;
-    font-size: 10px;
+    /*font-size: 10px;*/
+    font-size: 2.646mm;
     font-weight: 500;
     color: black;
     line-height: 1;
-    letter-spacing: -0.45px;
+    letter-spacing: -0.1185mm;
 }
 
 .card-sleeve .text p:not(:first-child) {
-    margin-top: 3px;
+    /*margin-top: 3px;*/
+    margin-top: 0.8mm;
 }
 
 .card-sleeve .text mark {
     color: #fff;
     background-color: #5a442c;
-    margin-left: -5px;
-    padding: 1px 6px 1px 4px;
+    /*margin-left: -5px;*/
+    margin-left: -1.4mm;
+    /*padding: 1px 6px 1px 4px;*/
+    padding: 0.2666mm 1.68mm 0.2666mm 1.4mm;
     font-family: var(--lorcana-font-keyword-name);
     font-weight: normal;
     display: inline-block;

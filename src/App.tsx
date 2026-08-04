@@ -16,9 +16,8 @@ const CARDS_PER_PAGE = 9;
 let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
 let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
 let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
-const STARTING_URL = "http://localhost:8787/db.json";
-const STARTING_DECK = `1 Ariel - On Human Legs
-`;
+const STARTING_URL = "http://localhost:8787/debug-db.json";
+const STARTING_DECK = ``;
 
 type Card = {
   id: string;
@@ -30,6 +29,7 @@ type Card = {
   classification: string;
   subtypes: string[];
   overlays: string[];
+  lore?: number;
   // cost: number
   // inkwell: boolean
   // attack: number
@@ -70,7 +70,7 @@ const Image: Component<Partial<Card>> = (props) => {
 
   return (
     <div
-      class={`card-sleeve ${(props as { type?: string }).type?.toLowerCase() ?? ""}`}
+      class={`card-sleeve ${props.type?.toLowerCase() ?? ""} ${props.lore == null ? "no-lore" : ""}`}
     >
       <img src={`${props.imageUrl}`} class="img radius" />
       <For each={props.overlays}>{(overlay) => <Overlay url={overlay} />}</For>
