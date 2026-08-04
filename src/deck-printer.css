@@ -136,11 +136,6 @@ body {
     flex-direction: column;
 }
 
-.card-sleeve .text br {
-    content: " ";
-    margin-top: 10px;
-    display: block;
-}
 .card-sleeve .text {
     font-family: var(--lorcana-font-fallback-bogle), sans-serif;
     font-size: 10px;
