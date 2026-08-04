@@ -16,7 +16,7 @@ const CARDS_PER_PAGE = 9;
 let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
 let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
 let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
-const STARTING_URL = "http://localhost:8787/debug-db.json";
+const STARTING_URL = "http://localhost:8787/db-sv.json";
 const STARTING_DECK = ``;
 
 type Card = {
