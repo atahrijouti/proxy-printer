@@ -16,6 +16,9 @@ const CARDS_PER_PAGE = 9;
 let PP_OVER_FOLDER = "http://localhost:8787/images/overlays";
 let PP_CARD_FRONT_FOLDER = "http://localhost:8787/images/card-front";
 let PP_CARD_BACK_URL = "http://localhost:8787/images/card-back.jpg";
+const STARTING_URL = "http://localhost:8787/db.json";
+const STARTING_DECK = `1 Ariel - On Human Legs
+`;
 
 type Card = {
   id: string;
@@ -151,14 +154,9 @@ const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
-  const [dictUrl, setDictUrl] = createSignal<string>(
-    "http://localhost:8787/db-sv.json",
-  );
+  const [dictUrl, setDictUrl] = createSignal<string>(STARTING_URL);
   const [cardDict, setCardDict] = createSignal<Card[]>([]);
-  const [cardPrompt, setCardPrompt] = createSignal<string>(
-    `1 Ariel - Spectacular Singer
-1 Goofy - Musketeer`,
-  );
+  const [cardPrompt, setCardPrompt] = createSignal<string>(STARTING_DECK);
 
   const processDict = (data: any) => {
     setCardDict(
