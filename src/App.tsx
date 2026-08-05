@@ -107,8 +107,6 @@ const mapPrompt = (db: Card[], prompt: string) => {
 
 const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
-  const [cardBackMarginCorrection, setCardBackMarginCorrection] =
-    createSignal("-2mm");
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
   const [DbUrl, setDbUrl] = createSignal<string>(STARTING_URL);
@@ -163,13 +161,6 @@ const App: Component = () => {
               checked={isCardBack()}
             />
           </label>
-          <input
-            type="text"
-            value={cardBackMarginCorrection()}
-            onChange={(e) => {
-              setCardBackMarginCorrection(e.currentTarget.value);
-            }}
-          />
         </div>
         <div>
           <input
@@ -193,9 +184,7 @@ const App: Component = () => {
           />
         </div>
       </aside>
-      <main
-        style={{ "--cardback-margin-correction": cardBackMarginCorrection() }}
-      >
+      <main>
         <Show when={data().stylesUrl}>
           <link href={data().stylesUrl} rel="stylesheet" />
         </Show>

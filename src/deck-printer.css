@@ -6,7 +6,6 @@
     --card-border: #000000;
     --cardback-border: #000000;
     --page-left-margin: 10mm;
-    --page-left-margin-correction: 0mm;
     --cardback-group-extra-background: 10px;
 
     --lorcana-font-fallback-bogle:
@@ -43,19 +42,11 @@ body {
     flex-wrap: wrap;
     gap: var(--gap-size);
     position: relative;
-    margin-left: calc(
-        var(--page-left-margin) + var(--page-left-margin-correction)
-    );
+    margin-left: var(--page-left-margin);
 }
 
 .guide {
     position: absolute;
-}
-
-.card-back .page {
-    --page-left-margin-correction: var(--cardback-margin-correction);
-    /*box-shadow: 0 0 0 var(--cardback-group-extra-background) var(--cardback-border);*/
-    background: url("http://localhost:8778/images/cardback-background.png");
 }
 
 .rtl {
@@ -69,7 +60,6 @@ body {
 }
 
 .img {
-    box-shadow: 0 0 0 var(--card-cutting-guide) var(--card-border);
     display: block;
     height: var(--card-height);
     width: var(--card-width);
