@@ -15,7 +15,7 @@ const CARDS_PER_PAGE = 9;
 const STARTING_URL = "http://localhost:8787/print-alignement.json";
 const STARTING_DECK = `9 front`;
 
-const [data, setData] = createSignal({ cards: [] } as DB);
+const [data, setDb] = createSignal({ cards: [] } as DB);
 
 type Card = {
   id: string;
@@ -111,29 +111,29 @@ const App: Component = () => {
     createSignal("-2mm");
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
-  const [dictUrl, setDictUrl] = createSignal<string>(STARTING_URL);
+  const [DbUrl, setDbUrl] = createSignal<string>(STARTING_URL);
   const [cardPrompt, setCardPrompt] = createSignal<string>(STARTING_DECK);
 
-  const fetchDict = _debounce((url: string) => {
+  const fetchDb = _debounce((url: string) => {
     const asyncCall = async () => {
       try {
         const response = await fetch(url);
         const data = await response.json();
-        setData(data);
+        setDb(data);
       } catch (e) {
-        setData({ cards: [] });
+        setDb({ cards: [] });
         console.log("couldn't fetch json");
       }
     };
     asyncCall();
   }, 500);
 
-  const rebuildList = _debounce((dict: Card[], prompt: string) => {
-    setDisplayedCards(mapPrompt(dict, prompt));
+  const rebuildList = _debounce((cards: Card[], prompt: string) => {
+    setDisplayedCards(mapPrompt(cards, prompt));
   }, 500);
 
   createEffect(() => {
-    fetchDict(dictUrl());
+    fetchDb(DbUrl());
   });
 
   createEffect(() => {
@@ -174,8 +174,8 @@ const App: Component = () => {
         <div>
           <input
             type="text"
-            onInput={(e) => setDictUrl(e.currentTarget.value)}
-            value={dictUrl()}
+            onInput={(e) => setDbUrl(e.currentTarget.value)}
+            value={DbUrl()}
           />
         </div>
         <div>
