@@ -12,10 +12,8 @@ import _debounce from "lodash/debounce";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
-const STARTING_URL = "http://localhost:8787/db-sv-print.json";
-const STARTING_DECK = `1 Tinker Bell - Giant Fairy
-1 Genie - Powers Unleashed
-`;
+const STARTING_URL = "http://localhost:8787/print-alignement.json";
+const STARTING_DECK = `9 front`;
 
 const [data, setData] = createSignal({ cards: [] } as DB);
 
@@ -73,7 +71,6 @@ const CardBackList: Component = () => {
     <Page
       cards={Array.from({ length: 9 }).map(() => ({
         imageUrl: data().cardBackUrl,
-        id: "Card Back",
       }))}
     />
   );
@@ -110,6 +107,8 @@ const mapPrompt = (db: Card[], prompt: string) => {
 
 const App: Component = () => {
   const [isCardBack, setIsCardBack] = createSignal(false);
+  const [cardBackMarginCorrection, setCardBackMarginCorrection] =
+    createSignal("-2mm");
   const [deckName, setDeckName] = createSignal("Deck");
   const [displayedCards, setDisplayedCards] = createSignal<Card[]>([]);
   const [dictUrl, setDictUrl] = createSignal<string>(STARTING_URL);
@@ -164,6 +163,13 @@ const App: Component = () => {
               checked={isCardBack()}
             />
           </label>
+          <input
+            type="text"
+            value={cardBackMarginCorrection()}
+            onChange={(e) => {
+              setCardBackMarginCorrection(e.currentTarget.value);
+            }}
+          />
         </div>
         <div>
           <input
@@ -187,7 +193,9 @@ const App: Component = () => {
           />
         </div>
       </aside>
-      <main>
+      <main
+        style={{ "--cardback-margin-correction": cardBackMarginCorrection() }}
+      >
         <Show when={data().stylesUrl}>
           <link href={data().stylesUrl} rel="stylesheet" />
         </Show>

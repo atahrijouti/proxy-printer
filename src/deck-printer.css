@@ -6,7 +6,7 @@
     --card-border: #000000;
     --cardback-border: #000000;
     --page-left-margin: 10mm;
-    --cardback-margin-offset: 2mm;
+    --page-left-margin-correction: 0mm;
     --cardback-group-extra-background: 10px;
 
     --lorcana-font-fallback-bogle:
@@ -38,12 +38,14 @@ body {
 
 .page {
     margin-top: 10mm;
-    margin-left: var(--page-left-margin);
     display: inline-grid;
     grid-template-columns: repeat(3, var(--card-width));
     flex-wrap: wrap;
     gap: var(--gap-size);
     position: relative;
+    margin-left: calc(
+        var(--page-left-margin) + var(--page-left-margin-correction)
+    );
 }
 
 .guide {
@@ -51,10 +53,7 @@ body {
 }
 
 .card-back .page {
-    margin-left: calc(
-        var(--page-left-margin) + var(--cardback-margin-offset) -
-            calc(2 * var(--gap-size))
-    );
+    --page-left-margin-correction: var(--cardback-margin-correction);
     /*box-shadow: 0 0 0 var(--cardback-group-extra-background) var(--cardback-border);*/
     background: url("http://localhost:8778/images/cardback-background.png");
 }
@@ -81,15 +80,6 @@ body {
     top: 0;
     left: 0;
 }
-
-/*
-
-WIDTH : 240px
-Margin : 4px
-Description width : 198px
-text max-width 190px
-
-*/
 
 .img.radius {
     border-radius: 2mm;
