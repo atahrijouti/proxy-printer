@@ -12,8 +12,8 @@ import _debounce from "lodash/debounce";
 import "./deck-printer.css";
 
 const CARDS_PER_PAGE = 9;
-const STARTING_URL = "http://localhost:8787/print-alignement.json";
-const STARTING_DECK = `9 front`;
+const STARTING_URL = "http://localhost:8787/db-sv-print.json";
+const STARTING_DECK = ``;
 
 const [data, setDb] = createSignal({ cards: [] } as DB);
 
