@@ -8,21 +8,15 @@
     --page-left-margin: 10mm;
     --cardback-group-extra-background: 10px;
 
-    --lorcana-font-fallback-bogle:
-        "Bogle", "Trebuchet MS", "Segoe UI", sans-serif;
+    --lorcana-font-fallback-bogle: "Bogle", "Trebuchet MS", "Segoe UI", sans-serif;
     --lorcana-font-card-name:
-        "The Bystander Collection Sans Medium",
-        var(--lorcana-font-fallback-bogle);
-    --lorcana-font-card-version:
-        "Brandon Text Condensed Bold", var(--lorcana-font-fallback-bogle);
+        "The Bystander Collection Sans Medium", var(--lorcana-font-fallback-bogle);
+    --lorcana-font-card-version: "Brandon Text Condensed Bold", var(--lorcana-font-fallback-bogle);
     --lorcana-font-card-subtypes:
-        "Brandon Text Condensed Black Italic",
-        var(--lorcana-font-fallback-bogle);
-    --lorcana-font-keyword-name:
-        "Brandon Text Condensed Black", var(--lorcana-font-fallback-bogle);
+        "Brandon Text Condensed Black Italic", var(--lorcana-font-fallback-bogle);
+    --lorcana-font-keyword-name: "Brandon Text Condensed Black", var(--lorcana-font-fallback-bogle);
     --lorcana-font-keyword-reminder:
-        "Brandon Text Condensed Medium Italic",
-        var(--lorcana-font-fallback-bogle);
+        "Brandon Text Condensed Medium Italic", var(--lorcana-font-fallback-bogle);
 }
 
 * {
