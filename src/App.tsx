@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
-import _debounce from "lodash/debounce"
+import { debounce } from "./helpers"
 
 import "./App.css"
 
@@ -104,7 +104,7 @@ const App: Component = () => {
   const [DbUrl, setDbUrl] = createSignal<string>(STARTING_URL)
   const [cardPrompt, setCardPrompt] = createSignal<string>(STARTING_DECK)
 
-  const fetchDb = _debounce((url: string) => {
+  const fetchDb = debounce((url: string) => {
     const asyncCall = async () => {
       try {
         const response = await fetch(url)
@@ -118,7 +118,7 @@ const App: Component = () => {
     asyncCall()
   }, 500)
 
-  const rebuildList = _debounce((cards: Card[], prompt: string) => {
+  const rebuildList = debounce((cards: Card[], prompt: string) => {
     setDisplayedCards(mapPrompt(cards, prompt))
   }, 500)
 

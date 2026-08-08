@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lodash": "^4.18.1",
     "solid-js": "^1.9.14"
   },
   "devDependencies": {
