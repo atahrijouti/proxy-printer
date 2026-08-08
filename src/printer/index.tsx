@@ -1,11 +1,19 @@
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
-import { debounce } from "./helpers"
+import { debounce } from "../helpers"
 
-import "./App.css"
+import "./styles.css"
 
 const CARDS_PER_PAGE = 9
 const STARTING_URL = "http://localhost:8787/db-sv-print.json"
-const STARTING_DECK = ``
+const STARTING_DECK = `1 tinker bell - giant fairy
+1 genie - powers unleashed
+1 donald duck - musketeer
+1 goofy - musketeer
+1 maximus - palace horse
+1 ariel - spectacular singer
+1 captain hook - thinking a happy thought
+1 aladdin - heroic outlaw
+1 jasmine - queen of agrabah`
 
 const [data, setDb] = createSignal({ cards: [] } as DB)
 

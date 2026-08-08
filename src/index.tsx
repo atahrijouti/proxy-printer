@@ -3,7 +3,7 @@ import { render } from "solid-js/web"
 import "solid-devtools"
 
 import "./index.css"
-import App from "./App.tsx"
+import App from "./printer/index.tsx"
 
 const root = document.getElementById("root")
 
