@@ -1,22 +1,11 @@
 :root {
     --card-width: 63mm;
     --card-height: 88mm;
-    --card-cutting-guide: 1px;
-    --gap-size: 2px;
+    --gap-size: 0px;
     --card-border: #000000;
     --cardback-border: #000000;
     --page-left-margin: 10mm;
     --cardback-group-extra-background: 10px;
-
-    --lorcana-font-fallback-bogle: "Bogle", "Trebuchet MS", "Segoe UI", sans-serif;
-    --lorcana-font-card-name:
-        "The Bystander Collection Sans Medium", var(--lorcana-font-fallback-bogle);
-    --lorcana-font-card-version: "Brandon Text Condensed Bold", var(--lorcana-font-fallback-bogle);
-    --lorcana-font-card-subtypes:
-        "Brandon Text Condensed Black Italic", var(--lorcana-font-fallback-bogle);
-    --lorcana-font-keyword-name: "Brandon Text Condensed Black", var(--lorcana-font-fallback-bogle);
-    --lorcana-font-keyword-reminder:
-        "Brandon Text Condensed Medium Italic", var(--lorcana-font-fallback-bogle);
 }
 
 * {
@@ -25,8 +14,7 @@
 }
 
 body {
-    color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 
 .page {
