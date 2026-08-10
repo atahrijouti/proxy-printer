@@ -136,20 +136,24 @@ content + template ──▶ [deterministic renderer] ──▶ SVG (the artifac
                                                               (or resvg-wasm → PNG)
 ```
 
-Keep the schema **renderer-agnostic**; the renderer is an implementation detail
-behind the template contract. Non-Vercel candidates (we avoid Vercel tooling):
+App stack is **Solid.js** — so favor framework-agnostic renderers (or ones with a
+Solid-native story). Keep the schema **renderer-agnostic** regardless; the renderer is
+an implementation detail behind the template contract. Non-Vercel candidates (we avoid
+Vercel tooling):
 
 - **Hand-rolled: `opentype.js` (MIT) + a small line-breaker → SVG.** Max control,
-  minimal deps, keeps the elegant "SVG is the single artifact" pipeline (SVG →
-  preview in DOM; same SVG → PDF via `svg2pdf.js`, or → PNG via `resvg-wasm`, both
-  non-Vercel). *Leading candidate* — best fit for the control/determinism/offline
-  goals. Cost: we write the wrapping + run-styling ourselves (bounded; cards are tiny).
-- **`@react-pdf/renderer`** — declarative (JSX), its own deterministic layout engine
-  (yoga + fontkit + line-breaker, *not* the browser), outputs PDF directly in-browser.
-  Closest to the "keep a declarative model, less code" appeal without Vercel. Preview
-  and PDF both come from its one engine, so parity holds.
-- **Typst compiled to WASM (`typst.ts`)** — print-grade output, fully deterministic,
-  but a new authoring language and heavier bundle.
+  minimal deps, framework-agnostic. Keeps the elegant "SVG is the single artifact"
+  pipeline — and SVG renders **natively and reactively in Solid** (the preview is just
+  Solid rendering the SVG nodes; the same SVG → PDF via `svg2pdf.js`, or → PNG via
+  `resvg-wasm`, both non-Vercel). *Leading candidate* — best fit for the
+  control/determinism/offline goals *and* the Solid stack. Cost: we write the wrapping
+  + run-styling ourselves (bounded; cards are tiny).
+- **Typst compiled to WASM (`typst.ts`)** — framework-agnostic (call it from Solid,
+  hand it markup, get a PDF). Print-grade and fully deterministic, but a new authoring
+  language and heavier bundle.
+- **`@react-pdf/renderer`** — *poor fit here:* its own deterministic layout engine is
+  nice, but it's React-only, so using it from Solid means pulling in a React runtime
+  just for PDF. Listed only to record why it's excluded.
 
 Bonus: generating a PDF with our own page geometry sidesteps the Safari "no margins"
 print-dialog problem entirely.
@@ -179,8 +183,9 @@ Determinism-wise this is fine: art is raster and never affects layout.
 
 ## Open questions / decisions to make
 
-- Renderer: hand-rolled (opentype.js → SVG) vs @react-pdf/renderer vs Typst-WASM.
-  (Lean hand-rolled to start. No Vercel tooling.)
+- Renderer: hand-rolled (opentype.js → SVG) vs Typst-WASM. (Lean hand-rolled to
+  start — framework-agnostic, SVG is Solid-native. No Vercel; @react-pdf excluded as
+  React-only.)
 - Parser: hand-rolled vs remark-directive vs BBCode. (Lean hand-rolled.)
 - Fit strategy for variable-length text into fixed boxes: deterministic shrink-to-fit
   steps? size buckets in the template? (Replaces today's `.smaller-text` hack.)
