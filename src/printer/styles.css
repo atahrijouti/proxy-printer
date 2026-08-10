@@ -68,6 +68,11 @@ body {
     }
 }
 
+@page {
+    size: A4;
+    margin: 0;
+}
+
 .controls {
     position: fixed;
     top: 0;
