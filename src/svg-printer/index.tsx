@@ -3,36 +3,13 @@ import { render } from "solid-js/web"
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 
 import "./styles.css"
+import { roundedRectPath } from "./draw"
 import { FontBook } from "./fonts"
-import { composeCard, type BackgroundBox, type CardDraw } from "./layout"
+import { composeCard, type CardDraw } from "./layout"
 import { exportCardsToPdf } from "./pdf"
 import type { Card, DB } from "./types"
 
 const DEFAULT_URL = "http://localhost:8787/db-sv-svg-print.json"
-
-// A rectangle with independent per-corner radii, clockwise from the top-left.
-function backgroundPath(box: BackgroundBox): string {
-  const { x, y, width, height, corners } = box
-  const clamp = (radius: number) => Math.max(0, Math.min(radius, width / 2, height / 2))
-  const topLeft = clamp(corners.topLeft)
-  const topRight = clamp(corners.topRight)
-  const bottomRight = clamp(corners.bottomRight)
-  const bottomLeft = clamp(corners.bottomLeft)
-  return [
-    `M${x + topLeft},${y}`,
-    `H${x + width - topRight}`,
-    topRight ? `A${topRight},${topRight} 0 0 1 ${x + width},${y + topRight}` : "",
-    `V${y + height - bottomRight}`,
-    bottomRight ? `A${bottomRight},${bottomRight} 0 0 1 ${x + width - bottomRight},${y + height}` : "",
-    `H${x + bottomLeft}`,
-    bottomLeft ? `A${bottomLeft},${bottomLeft} 0 0 1 ${x},${y + height - bottomLeft}` : "",
-    `V${y + topLeft}`,
-    topLeft ? `A${topLeft},${topLeft} 0 0 1 ${x + topLeft},${y}` : "",
-    "Z",
-  ]
-    .filter(Boolean)
-    .join(" ")
-}
 
 const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
   const clipId = () => `card-clip-${props.index}`
@@ -64,7 +41,15 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
         </For>
       </g>
 
-      <For each={props.draw.backgrounds}>{(box) => <path d={backgroundPath(box)} fill={box.fill} />}</For>
+      <For each={props.draw.backgrounds}>
+        {(box) => (
+          <path
+            d={roundedRectPath(box.width, box.height, box.corners)}
+            transform={`translate(${box.x} ${box.y})`}
+            fill={box.fill}
+          />
+        )}
+      </For>
 
       <For each={props.draw.symbols}>
         {(image) => (

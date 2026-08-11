@@ -112,9 +112,9 @@ function tokenize(
     const style = resolveStyle(mergeStyles(baseStyle, run.styles, context.styles), context.fonts, fontSizeInMm)
     const padding = style.background ? parseEdges(style.background.padding, fontSizeInMm) : null
 
-    // A background's left/right padding participates in the inline flow, so emit it
-    // as (invisible) pad tokens that belong to the same background segment.
-    if (padding) tokens.push({ kind: "pad", style, widthInMm: padding.left, x: 0 })
+    // The badge's text sits at the normal flow position (aligned with body text);
+    // the box bleeds left of it (see emitLine's `bleedLeft`). Only the right padding
+    // participates in flow — as a trailing pad token that also pushes following text.
 
     const text = style.uppercase ? run.text.toUpperCase() : run.text
     for (const part of text.split(/(\s+)/)) {

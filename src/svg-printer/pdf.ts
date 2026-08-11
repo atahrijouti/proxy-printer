@@ -9,6 +9,7 @@
 
 import { Buffer } from "buffer"
 import PDFDocument, { type PDFDoc } from "pdfkit/js/pdfkit.standalone.js"
+import { roundedRectPath } from "./draw"
 import type { FontBook, ResolvedFace } from "./fonts"
 import type { CardDraw } from "./layout"
 
@@ -161,8 +162,16 @@ function drawCard(
   for (const art of card.artLayers) drawImage(art.href, art.x, art.y, art.width, art.height)
 
   for (const box of card.backgrounds) {
-    // Square corners for now; rounded shape is a later step.
-    doc.rect(pt(cardLeftInMm + box.x), pt(cardTopInMm + box.y), pt(box.width), pt(box.height)).fill(box.fill)
+    const cornersPt = {
+      topLeft: box.corners.topLeft * MM_TO_PT,
+      topRight: box.corners.topRight * MM_TO_PT,
+      bottomRight: box.corners.bottomRight * MM_TO_PT,
+      bottomLeft: box.corners.bottomLeft * MM_TO_PT,
+    }
+    doc.save()
+    doc.translate(pt(cardLeftInMm + box.x), pt(cardTopInMm + box.y))
+    doc.path(roundedRectPath(pt(box.width), pt(box.height), cornersPt)).fill(box.fill)
+    doc.restore()
   }
 
   for (const symbol of card.symbols) drawImage(symbol.href, symbol.x, symbol.y, symbol.width, symbol.height)
