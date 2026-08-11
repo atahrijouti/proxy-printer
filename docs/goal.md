@@ -7,32 +7,59 @@
 ## The model
 
 The printer renders a print run assembled from two inputs: a **DB** — a catalog of
-card definitions plus the presentation that drives how they look — and a **decklist**
+card definitions plus the presentation (named styles, fonts, and symbols) that drives
+how they look — and a **decklist**
 that selects which cards, and how many copies, to print. A card needs only an `id` and
-a base `image`; everything else is optional. To overlay, a card carries an ordered
-list of overlays stacked on the image in the order given (the provider owns stacking
-and placement), each one of three primitives: an **image** (layered on), a **shape** (a
-content-less primitive whose form, size, and position come entirely from its named
-style), or **text**. Text is plain by default but supports two inline mechanisms, each
-keyed by a provider-chosen name: **tagged runs** (a stretch of text that picks up a
-named style) and **substitutions** (a token replaced by registered content, most
-notably inline symbols). All styling — where each thing sits and how it looks — is
-**supplied by the DB and applied by the printer, never hardcoded**; the printer
-interprets no meaning (_name_, _ability_, _trait_ are nothing to it), it only applies
-the named styles and substitutions it's handed.
+a base `image`; everything else is optional. To fill a card, it carries an ordered
+`overlays` array drawn in painter's order — the first element sits directly on the
+base image, each subsequent element on top, the last topmost — each one of three
+primitives: an **image** (layered on), a **shape** (a content-less primitive whose
+form, size, and position come entirely from its named style), or **text**. Text is plain by default but supports two inline mechanisms, each
+keyed by a name the **provider** (whoever builds the DB) chooses: **tagged spans** (a
+stretch of text that picks up a named style) and **substitutions** (a token replaced
+by registered content — currently inline symbols, extensible to other registered
+kinds). The printer defines the frame — page size and
+margins, each card's size, corner radius, and grid arrangement — and then lets the DB
+fill each card's interior. Everything layered inside a card — the overlays and how
+each is styled and placed — comes from the DB; the printer interprets no card-domain
+meaning (_name_, _ability_, _trait_ are nothing to it), only applying the named styles
+and substitutions it's handed.
 
 ## The guarantee and output
 
-The one hard requirement: the deliverable is identical for the same input, regardless
-of the browser or OS running the printer. So the printer renders through a
-self-contained, controlled pipeline with fonts supplied by the DB — it never defers
-layout, text flow, or glyph rendering to the host (the thing that varies) — producing
-the same stacking, shapes, wrapping, and glyphs everywhere, fully offline. From that
-single render it yields both a live on-screen preview and a print-ready output whose
-page geometry — page size, card grid, and margins — is defined by the printer, not the
-browser's print dialog, so what you preview is exactly what prints; the run paginates
-across pages, with an option to emit matching card backs for double-sided printing.
+The one hard requirement: for the same input the printer produces a **byte-identical,
+print-ready PDF**, regardless of the browser or OS it ran on. Building the PDF is
+**entirely client-side** — there is no server-side computation; the app can be served
+locally or from static hosting, and only the client is needed to build the file. It
+also shows a live on-screen preview that reflects the PDF. The page layout — page
+size, margins, card size, corner radius, and grid — is defined by the printer and
+baked into the PDF; the run paginates across pages, and the same tooling can render a
+card-back page (the grid filled with the DB's back image).
 
 ## Footnotes (divergences from earlier printers)
 
-_To be filled in as we review the goal against the html-printer and svg-printer._
+1. **Overlay model (ordered array of typed primitives).** The goal is correct and
+   deliberate. html-printer expressed overlays as an ordered array of raw HTML strings
+   (order preserved, but untyped) and was simply unfinished; svg-printer replaced the
+   ordered list with named template roles keyed to card fields and a renderer-fixed
+   z-order (art→background→symbols→text). Both are earlier rungs — the target is an
+   ordered array of typed `image`/`shape`/`text` overlays whose stacking order the
+   provider owns.
+2. **Determinism.** html-printer renders via the browser's own HTML/CSS + print, so
+   its output varies by browser/OS — the divergence that motivated making
+   byte-identical output a goal in the first place.
+3. **Shape primitive.** Neither printer has a standalone shape — html-printer has
+   none, and svg-printer's only shape is a background box computed behind a text run.
+   The primitive was added when defining the goal, so both printers predate it.
+4. **Frame ownership.** The printer owns the page and card frame (page, margins, card
+   size, corner radius, grid); the DB fills only each card's interior. svg-printer
+   diverged by putting card size in the DB (`presentation.card`) and duplicating it in
+   the printer — geometry the printer should own outright.
+5. **Card shape.** svg-printer keyed overlays as fixed card fields tied to template
+   `roles` (requiring a `template`, and fixing z-order in the renderer). The goal keeps
+   the same idea but as an ordered `overlays` array of typed items referencing named
+   styles — so z-order is provider-owned (painter's order) and no `template`/`roles`
+   indirection is needed; a card needs only `id` + `image`.
+6. **Card backs.** html-printer renders a card-back page by reusing the card tooling
+   to tile the back image across the grid (the user handles copies via the print
+   dialog). svg-printer stores the back image (`cardBack`) but never emits a back page.
