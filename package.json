@@ -9,8 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "fontkit": "^2.0.4",
-    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.19.1",
     "solid-js": "^1.9.14"
   },
   "devDependencies": {

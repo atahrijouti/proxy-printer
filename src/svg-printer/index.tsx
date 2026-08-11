@@ -135,14 +135,14 @@ const App: Component = () => {
     const loaded = state()
     if (!loaded) return
     const draws = cards().map((entry) => entry.draw)
-    const bytes = await exportCardsToPdf(draws, loaded.fonts)
-    const blob = new Blob([bytes as BlobPart], { type: "application/pdf" })
+    const blob = await exportCardsToPdf(draws, loaded.fonts)
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
     anchor.href = url
     anchor.download = "proxies.pdf"
     anchor.click()
-    URL.revokeObjectURL(url)
+    // Defer revoke so the browser has started the download before the blob is freed.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 
   return (
