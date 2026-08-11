@@ -272,6 +272,7 @@ function layoutLineRole(
 function layoutBlockRole(
   paragraphs: string[],
   role: Role,
+  fontSizeInMm: number,
   context: LayoutContext,
   draw: CardDraw,
 ): void {
@@ -279,27 +280,15 @@ function layoutBlockRole(
   const boxY = toMillimetres(role.box.y)
   const boxWidth = toMillimetres(role.box.w)
   const boxHeight = toMillimetres(role.box.h)
-  const lineHeightMultiplier = role.lineHeight ?? 1
-  const minSizeInMm = toMillimetres(role.text.minSize ?? role.text.size)
   const baseFace = context.fonts.resolve(role.text.font ?? "", role.text.weight ?? 400, role.text.style ?? "normal")
 
-  // Shrink-to-fit: reduce the size until the wrapped block fits the box height.
-  let fontSizeInMm = toMillimetres(role.text.size)
-  let wrappedParagraphs: Token[][][] = []
-  let lineStep = 0
-  let paragraphGap = 0
-  let totalHeight = 0
-  for (;;) {
-    lineStep = fontSizeInMm * lineHeightMultiplier
-    paragraphGap = toMillimetres(role.paragraphGap, fontSizeInMm)
-    wrappedParagraphs = paragraphs.map((paragraph) =>
-      wrap(tokenize(paragraph, role.text, fontSizeInMm, context), boxWidth),
-    )
-    const lineCount = wrappedParagraphs.reduce((sum, lines) => sum + lines.length, 0)
-    totalHeight = lineCount * lineStep + paragraphGap * (wrappedParagraphs.length - 1)
-    if (totalHeight <= boxHeight || fontSizeInMm <= minSizeInMm) break
-    fontSizeInMm = Math.max(minSizeInMm, fontSizeInMm * 0.97)
-  }
+  const lineStep = fontSizeInMm * (role.lineHeight ?? 1)
+  const paragraphGap = toMillimetres(role.paragraphGap, fontSizeInMm)
+  const wrappedParagraphs = paragraphs.map((paragraph) =>
+    wrap(tokenize(paragraph, role.text, fontSizeInMm, context), boxWidth),
+  )
+  const lineCount = wrappedParagraphs.reduce((sum, lines) => sum + lines.length, 0)
+  const totalHeight = lineCount * lineStep + paragraphGap * (wrappedParagraphs.length - 1)
 
   const cap = capHeightInMm(baseFace, fontSizeInMm)
   let cursorY = role.valign === "center" ? boxY + Math.max(0, (boxHeight - totalHeight) / 2) : boxY
@@ -350,7 +339,12 @@ export function composeCard(card: Card, presentation: Presentation, fonts: FontB
       if (typeof value === "string" && value) layoutLineRole(value, role, context, widthInMm, draw)
     } else {
       const paragraphs = extractParagraphs(value)
-      if (paragraphs.length) layoutBlockRole(paragraphs, role, context, draw)
+      if (paragraphs.length) {
+        // Per-card size override (e.g. the dense cards); else the role's default.
+        const override = value && typeof value === "object" ? (value as AbilityBlock).size : undefined
+        const fontSizeInMm = toMillimetres(override ?? role.text.size)
+        layoutBlockRole(paragraphs, role, fontSizeInMm, context, draw)
+      }
     }
   }
 

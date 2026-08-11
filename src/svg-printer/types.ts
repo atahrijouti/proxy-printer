@@ -30,7 +30,6 @@ export interface TextStyle {
   weight?: number
   style?: "normal" | "italic"
   size?: Length
-  minSize?: Length // lower bound when fit is "shrink"
   color?: string
   opacity?: number
   letterSpacing?: Length
@@ -47,7 +46,6 @@ export interface Role {
   align?: "left" | "center" // horizontal (line roles)
   valign?: "top" | "center" // vertical (block roles)
   trim?: "cap" | "baseline" // where the text sits relative to box.y
-  fit?: "shrink" // shrink to fit box height (block roles)
   lineHeight?: number
   paragraphGap?: Length
   text: TextStyle
@@ -73,6 +71,7 @@ export interface Presentation {
 
 export interface AbilityBlock {
   type?: string
+  size?: Length // per-card override of the block role's text size
   content: string[]
 }
 
