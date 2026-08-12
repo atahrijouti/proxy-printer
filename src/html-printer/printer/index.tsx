@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 import { debounce } from "../helpers/debounce"
-import { parseMarkup, type Abbreviations } from "../helpers/markup"
+import { createMarkup, type Markup, type Abbreviations } from "../helpers/markup"
 
 import "./styles.css"
 
@@ -17,7 +17,8 @@ const STARTING_DECK = `1 tinker bell - giant fairy
 1 jasmine - queen of agrabah`
 
 const [data, setDb] = createSignal({ cards: [] } as DB)
-const abbreviations = () => data().abbreviations ?? {}
+// the markup engine, rebuilt from the DB's presentation each time a new DB is fetched
+const [markup, setMarkup] = createSignal<Markup>(createMarkup({ abbreviations: {} }))
 
 // overlays are drawn in array order (painter's order); each is one typed primitive
 type ImageOverlay = { type: "image"; style?: string; src: string }
@@ -51,12 +52,10 @@ const OverlayView: Component<{ overlay: Overlay }> = (props) => {
 
   return Array.isArray(overlay.content) ? (
     <div class={className}>
-      <For each={overlay.content}>
-        {(paragraph) => <p>{parseMarkup(paragraph, abbreviations())}</p>}
-      </For>
+      <For each={overlay.content}>{(paragraph) => <p>{markup().render(paragraph)}</p>}</For>
     </div>
   ) : (
-    <span class={className}>{parseMarkup(overlay.content, abbreviations())}</span>
+    <span class={className}>{markup().render(overlay.content)}</span>
   )
 }
 
@@ -145,8 +144,10 @@ const App: Component = () => {
         const response = await fetch(url)
         const data = await response.json()
         setDb(data)
+        setMarkup(createMarkup({ abbreviations: data.abbreviations ?? {} }))
       } catch (e) {
         setDb({ cards: [] })
+        setMarkup(createMarkup({ abbreviations: {} }))
         console.log("couldn't fetch json")
       }
     }
