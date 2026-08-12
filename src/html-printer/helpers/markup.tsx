@@ -28,10 +28,10 @@ const matchingBrace = (text: string, open: number): number => {
 
 const parseDirective = (inner: string): Segment => {
   const space = inner.indexOf(" ")
-  const fn = space === -1 ? inner : inner.slice(0, space)
+  const keyword = space === -1 ? inner : inner.slice(0, space)
   const rest = space === -1 ? "" : inner.slice(space + 1)
 
-  switch (fn) {
+  switch (keyword) {
     case "abbr":
       return { kind: "abbr", name: rest.trim() }
     case "t": {
@@ -94,6 +94,10 @@ export const createMarkup = ({ abbreviations }: MarkupConfig): Markup => {
         }
         case "tag":
           return <span class={segment.style}>{renderSegments(segment.children)}</span>
+        default: {
+          const _exhaustive: never = segment
+          return _exhaustive
+        }
       }
     })
 
