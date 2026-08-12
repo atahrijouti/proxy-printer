@@ -1,4 +1,12 @@
-import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Show,
+  type Component,
+  type JSX,
+} from "solid-js"
 import { debounce } from "../helpers"
 
 import "./styles.css"
@@ -16,16 +24,28 @@ const STARTING_DECK = `1 tinker bell - giant fairy
 1 jasmine - queen of agrabah`
 
 const [data, setDb] = createSignal({ cards: [] } as DB)
+const abbreviations = () => data().abbreviations ?? {}
+
+// an abbreviation ({abbr NAME}) expands to registered content — a symbol image or literal text
+type Abbreviation = { type: "image"; src: string } | { type: "text"; value: string }
+type Abbreviations = Record<string, Abbreviation>
+
+// overlays are drawn in array order (painter's order); each is one typed primitive
+type ImageOverlay = { type: "image"; style?: string; src: string }
+type ShapeOverlay = { type: "shape"; style: string }
+type TextOverlay = { type: "text"; style?: string; content: string | string[] }
+type Overlay = ImageOverlay | ShapeOverlay | TextOverlay
 
 type Card = {
   id: string
   imageUrl: string
-  overlays: string[]
+  overlays?: Overlay[]
 }
 
 type DB = {
   stylesUrl?: string
   cardBackUrl?: string
+  abbreviations?: Abbreviations
   cards: Card[]
 }
 
@@ -33,11 +53,103 @@ type PageData = {
   cards: Partial<Card>[]
 }
 
+// From a "{" find its matching "}", counting nested braces and honouring "\{" / "\}" escapes.
+const matchingBrace = (text: string, open: number): number => {
+  let depth = 0
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === "\\") {
+      i++
+      continue
+    }
+    if (ch === "{") depth++
+    else if (ch === "}" && --depth === 0) return i
+  }
+  return -1
+}
+
+// Expand one function call — the text between the braces — to a node.
+//   {t <style> <content…>} → <span class="<style>">…</span>  (content parsed recursively)
+//   {abbr <name>}          → the registered abbreviation (image → <img>, text → string)
+// Anything unrecognised is shown literally, braces included.
+const expand = (inner: string, abbr: Abbreviations): JSX.Element => {
+  const space = inner.indexOf(" ")
+  const fn = space === -1 ? inner : inner.slice(0, space)
+  const rest = space === -1 ? "" : inner.slice(space + 1)
+
+  if (fn === "abbr") {
+    const name = rest.trim()
+    const entry = abbr[name]
+    if (!entry) return `{${inner}}`
+    return entry.type === "image" ? <img class="glyph" src={entry.src} alt={name} /> : entry.value
+  }
+
+  if (fn === "t") {
+    const space2 = rest.indexOf(" ")
+    const style = space2 === -1 ? rest : rest.slice(0, space2)
+    const content = space2 === -1 ? "" : rest.slice(space2 + 1)
+    return <span class={style}>{parseMarkup(content, abbr)}</span>
+  }
+
+  return `{${inner}}`
+}
+
+// Parse inline markup into an ordered list of nodes (plain runs stay strings).
+const parseMarkup = (text: string, abbr: Abbreviations): JSX.Element[] => {
+  const nodes: JSX.Element[] = []
+  let run = ""
+  const flush = () => {
+    if (run) nodes.push(run)
+    run = ""
+  }
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === "\\" && (text[i + 1] === "{" || text[i + 1] === "}")) {
+      run += text[i + 1]
+      i++
+      continue
+    }
+    if (ch === "{") {
+      const close = matchingBrace(text, i)
+      if (close === -1) {
+        run += ch
+        continue
+      }
+      flush()
+      nodes.push(expand(text.slice(i + 1, close), abbr))
+      i = close
+      continue
+    }
+    run += ch
+  }
+  flush()
+  return nodes
+}
+
+const OverlayView: Component<{ overlay: Overlay }> = (props) => {
+  const overlay = props.overlay
+  if (overlay.type === "image") return <img class="img overlay radius" src={overlay.src} />
+
+  const className = `overlay ${overlay.style ?? ""}`.trim()
+  if (overlay.type === "shape") return <div class={className} />
+
+  return Array.isArray(overlay.content) ? (
+    <div class={className}>
+      <For each={overlay.content}>
+        {(paragraph) => <p>{parseMarkup(paragraph, abbreviations())}</p>}
+      </For>
+    </div>
+  ) : (
+    <span class={className}>{parseMarkup(overlay.content, abbreviations())}</span>
+  )
+}
+
 const Image: Component<Partial<Card>> = (props) => {
   return (
     <div class="card-sleeve">
       <img src={`${props.imageUrl}`} class="img radius" />
-      <div innerHTML={props.overlays?.join("") ?? ""} />
+      <For each={props.overlays ?? []}>{(overlay) => <OverlayView overlay={overlay} />}</For>
     </div>
   )
 }
