@@ -3,7 +3,7 @@ declare module "pdfkit/js/pdfkit.standalone.js" {
   export interface PDFDoc {
     on(event: "data", cb: (chunk: Uint8Array) => void): void
     on(event: "end", cb: () => void): void
-    addPage(options: { size: [number, number]; margin: number }): PDFDoc
+    addPage(options: { size: [number, number] | string; margin: number }): PDFDoc
     registerFont(name: string, src: Uint8Array): PDFDoc
     font(name: string): PDFDoc
     fontSize(size: number): PDFDoc
@@ -19,8 +19,14 @@ declare module "pdfkit/js/pdfkit.standalone.js" {
     image(src: string, x: number, y: number, options: { width: number; height: number }): PDFDoc
     end(): void
   }
+  type PageSize = [number, number] | string
   interface PDFDocumentConstructor {
-    new (options: { size: [number, number]; margin: number; autoFirstPage?: boolean }): PDFDoc
+    new (options: {
+      size: PageSize
+      margin: number
+      autoFirstPage?: boolean
+      info?: Record<string, unknown>
+    }): PDFDoc
   }
   const PDFDocument: PDFDocumentConstructor
   export default PDFDocument
