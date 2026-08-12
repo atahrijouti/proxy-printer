@@ -38,19 +38,17 @@ card-back page (the grid filled with the DB's back image).
 
 ## Footnotes (divergences from earlier printers)
 
-1. **Overlay model (ordered array of typed primitives).** The goal is correct and
-   deliberate. html-printer expressed overlays as an ordered array of raw HTML strings
-   (order preserved, but untyped) and was simply unfinished; svg-printer replaced the
-   ordered list with named template roles keyed to card fields and a renderer-fixed
-   z-order (art→background→symbols→text). Both are earlier rungs — the target is an
+1. **Overlay model (ordered array of typed primitives).** svg-printer diverges — it
+   replaced the ordered `overlays` array with named template roles keyed to card fields
+   and a renderer-fixed z-order (art→background→symbols→text), rather than the target's
    ordered array of typed `image`/`shape`/`text` overlays whose stacking order the
    provider owns.
 2. **Determinism.** html-printer renders via the browser's own HTML/CSS + print, so
    its output varies by browser/OS — the divergence that motivated making
    byte-identical output a goal in the first place.
-3. **Shape primitive.** Neither printer has a standalone shape — html-printer has
-   none, and svg-printer's only shape is a background box computed behind a text run.
-   The primitive was added when defining the goal, so both printers predate it.
+3. **Shape primitive.** svg-printer has no standalone shape — its only shape is a
+   background box computed behind a text run; it predates the primitive, which was added
+   when defining the goal.
 4. **Frame ownership.** The printer owns the page and card frame (page, margins, card
    size, corner radius, grid); the DB fills only each card's interior. svg-printer
    diverged by putting card size in the DB (`presentation.card`) and duplicating it in
@@ -60,6 +58,5 @@ card-back page (the grid filled with the DB's back image).
    the same idea but as an ordered `overlays` array of typed items referencing named
    styles — so z-order is provider-owned (painter's order) and no `template`/`roles`
    indirection is needed; a card needs only `id` + `image`.
-6. **Card backs.** html-printer renders a card-back page by reusing the card tooling
-   to tile the back image across the grid (the user handles copies via the print
-   dialog). svg-printer stores the back image (`cardBack`) but never emits a back page.
+6. **Card backs.** svg-printer stores the back image (`cardBack`) but never emits a
+   back page — the goal's card-back page (the grid filled with the DB's back image).
