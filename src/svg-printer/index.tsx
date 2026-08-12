@@ -4,6 +4,7 @@ import { createEffect, createMemo, createSignal, For, Show, type Component } fro
 
 import "./styles.css"
 import { roundedRectPath } from "./draw"
+import { CARDS_PER_PAGE } from "./frame"
 import { FontBook } from "./fonts"
 import { composeCard, type CardDraw } from "./layout"
 import { exportCardsToPdf } from "./pdf"
@@ -19,8 +20,7 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
       width={`${props.draw.widthInMm}mm`}
       height={`${props.draw.heightInMm}mm`}
       viewBox={`0 0 ${props.draw.widthInMm} ${props.draw.heightInMm}`}
-      xmlns="http://www.w3.org/2000/svg"
-    >
+      xmlns="http://www.w3.org/2000/svg">
       <defs>
         <clipPath id={clipId()}>
           <rect
@@ -36,7 +36,13 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
       <g clip-path={`url(#${clipId()})`}>
         <For each={props.draw.artLayers}>
           {(image) => (
-            <image href={image.href} x={image.x} y={image.y} width={image.width} height={image.height} />
+            <image
+              href={image.href}
+              x={image.x}
+              y={image.y}
+              width={image.width}
+              height={image.height}
+            />
           )}
         </For>
       </g>
@@ -53,7 +59,13 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
 
       <For each={props.draw.symbols}>
         {(image) => (
-          <image href={image.href} x={image.x} y={image.y} width={image.width} height={image.height} />
+          <image
+            href={image.href}
+            x={image.x}
+            y={image.y}
+            width={image.width}
+            height={image.height}
+          />
         )}
       </For>
 
@@ -69,8 +81,7 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
             letter-spacing={String(fragment.letterSpacingInMm)}
             style={{ "font-kerning": "none", "font-variant-ligatures": "none" }}
             fill={fragment.fill}
-            opacity={fragment.opacity}
-          >
+            opacity={fragment.opacity}>
             {fragment.text}
           </text>
         )}
@@ -79,10 +90,28 @@ const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
   )
 }
 
+// Decklist → the cards to print. "<count> <id>" per line; a blank list prints the whole DB.
+function mapPrompt(cards: Card[], prompt: string): Card[] {
+  if (!cards.length) return []
+  if (prompt.trim() === "") return cards
+  const out: Card[] = []
+  for (const line of prompt.split("\n")) {
+    const match = line.match(/^(\d+)\s+(.*)$/)
+    if (!match) continue
+    const count = Number(match[1])
+    const card = cards.find((entry) => entry.id === match[2].trim().toLowerCase())
+    if (!card) continue
+    for (let i = 0; i < count; i++) out.push(card)
+  }
+  return out
+}
+
 const App: Component = () => {
   const [dbUrl, setDbUrl] = createSignal(DEFAULT_URL)
   const [state, setState] = createSignal<{ db: DB; fonts: FontBook } | null>(null)
   const [error, setError] = createSignal<string>()
+  const [deck, setDeck] = createSignal("")
+  const [isCardBack, setIsCardBack] = createSignal(false)
 
   createEffect(() => {
     const url = dbUrl()
@@ -102,24 +131,46 @@ const App: Component = () => {
     })()
   })
 
-  const cards = createMemo(() => {
+  // The run: either a grid of card backs, or the decklist selection.
+  const selected = createMemo<Card[]>(() => {
     const loaded = state()
     if (!loaded) return []
-    const drawn: { card: Card; draw: CardDraw }[] = []
-    for (const card of loaded.db.cards) {
+    if (isCardBack()) {
+      const back = loaded.db.cardBack
+      if (!back) return []
+      return Array.from({ length: CARDS_PER_PAGE }, (_, i) => ({ id: `back-${i}`, image: back }))
+    }
+    return mapPrompt(loaded.db.cards, deck())
+  })
+
+  const drawn = createMemo(() => {
+    const loaded = state()
+    if (!loaded) return []
+    const out: { card: Card; draw: CardDraw }[] = []
+    for (const card of selected()) {
       try {
-        drawn.push({ card, draw: composeCard(card, loaded.db.presentation, loaded.fonts) })
+        out.push({ card, draw: composeCard(card, loaded.db.presentation, loaded.fonts) })
       } catch (composeError) {
-        setError(`card "${card.id}": ${composeError instanceof Error ? composeError.message : String(composeError)}`)
+        setError(
+          `card "${card.id}": ${composeError instanceof Error ? composeError.message : String(composeError)}`,
+        )
       }
     }
-    return drawn
+    return out
+  })
+
+  const pages = createMemo(() => {
+    const all = drawn()
+    const result: { card: Card; draw: CardDraw }[][] = []
+    for (let i = 0; i < all.length; i += CARDS_PER_PAGE)
+      result.push(all.slice(i, i + CARDS_PER_PAGE))
+    return result
   })
 
   async function downloadPdf() {
     const loaded = state()
     if (!loaded) return
-    const draws = cards().map((entry) => entry.draw)
+    const draws = drawn().map((entry) => entry.draw)
     const blob = await exportCardsToPdf(draws, loaded.fonts)
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
@@ -133,7 +184,25 @@ const App: Component = () => {
   return (
     <>
       <aside class="controls no-print">
-        <input type="text" value={dbUrl()} onInput={(event) => setDbUrl(event.currentTarget.value)} />
+        <input
+          type="text"
+          value={dbUrl()}
+          onInput={(event) => setDbUrl(event.currentTarget.value)}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={isCardBack()}
+            onChange={() => setIsCardBack(!isCardBack())}
+          />
+          Card backs
+        </label>
+        <textarea
+          class="deck"
+          placeholder="1 card id per line — blank prints all"
+          value={deck()}
+          onInput={(event) => setDeck(event.currentTarget.value)}
+        />
         <button onClick={downloadPdf} disabled={!state()}>
           Download PDF
         </button>
@@ -148,9 +217,15 @@ const App: Component = () => {
       </aside>
 
       <main>
-        <div class="page">
-          <For each={cards()}>{(entry, index) => <CardSvg draw={entry.draw} index={index()} />}</For>
-        </div>
+        <For each={pages()}>
+          {(page) => (
+            <div class="page">
+              <For each={page}>
+                {(entry, index) => <CardSvg draw={entry.draw} index={index()} />}
+              </For>
+            </div>
+          )}
+        </For>
       </main>
     </>
   )

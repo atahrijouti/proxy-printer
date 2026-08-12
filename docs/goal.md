@@ -38,25 +38,11 @@ card-back page (the grid filled with the DB's back image).
 
 ## Footnotes (divergences from earlier printers)
 
-1. **Overlay model (ordered array of typed primitives).** svg-printer diverges — it
-   replaced the ordered `overlays` array with named template roles keyed to card fields
-   and a renderer-fixed z-order (art→background→symbols→text), rather than the target's
-   ordered array of typed `image`/`shape`/`text` overlays whose stacking order the
-   provider owns.
-2. **Determinism.** html-printer renders via the browser's own HTML/CSS + print, so
-   its output varies by browser/OS — the divergence that motivated making
-   byte-identical output a goal in the first place.
-3. **Shape primitive.** svg-printer has no standalone shape — its only shape is a
-   background box computed behind a text run; it predates the primitive, which was added
-   when defining the goal.
-4. **Frame ownership.** The printer owns the page and card frame (page, margins, card
-   size, corner radius, grid); the DB fills only each card's interior. svg-printer
-   diverged by putting card size in the DB (`presentation.card`) and duplicating it in
-   the printer — geometry the printer should own outright.
-5. **Card shape.** svg-printer keyed overlays as fixed card fields tied to template
-   `roles` (requiring a `template`, and fixing z-order in the renderer). The goal keeps
-   the same idea but as an ordered `overlays` array of typed items referencing named
-   styles — so z-order is provider-owned (painter's order) and no `template`/`roles`
-   indirection is needed; a card needs only `id` + `image`.
-6. **Card backs.** svg-printer stores the back image (`cardBack`) but never emits a
-   back page — the goal's card-back page (the grid filled with the DB's back image).
+1. **Determinism.** html-printer renders via the browser's own HTML/CSS + print, so its
+   output varies by browser/OS — the divergence that motivated making byte-identical
+   output a goal in the first place. (svg-printer builds the PDF itself, so it isn't
+   subject to this.)
+2. **Painter's order (svg-printer).** svg-printer batches its draw output by category
+   (images, then background boxes, then text) instead of one ordered op-list, so overlay
+   order is honored only where images precede text — true for every current card, but an
+   arbitrary image-over-text interleave wouldn't stack in array order.

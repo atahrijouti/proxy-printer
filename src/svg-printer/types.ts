@@ -1,11 +1,13 @@
-// DB schema for the SVG printer (see docs/rendering-ideation.md).
+// DB schema for the SVG printer — aligned to docs/goal.md.
 //
-// Content lives in `cards`; all geometry/styling lives in `presentation`. The
-// renderer is domain-agnostic: it understands generic capabilities (a text style,
-// an optional background behind a run, a role that is either a single line or a
-// wrapped block) — never game concepts like "keyword" or "trait".
+// A card is `id` + base `image` + an ordered `overlays` array drawn in painter's order
+// (first element on the base image, each next on top). Each overlay is one typed
+// primitive — image / shape / text — referencing a named style in `presentation.styles`.
+// The renderer is domain-agnostic: it knows the three primitives, named styles, and the
+// {t}/{abbr} inline markup — never game concepts like "keyword" or "trait". The frame
+// (card size, corner radius, page, grid) is owned by the printer, not the DB.
 
-export type Length = string // "63mm" | "0.92em" | "6px" | "2pt"
+export type Length = string // "63mm" | "0.92em" | "6px"
 
 export interface FontFaceSource {
   family: string
@@ -14,8 +16,8 @@ export interface FontFaceSource {
   src: string
 }
 
-// A background box drawn behind a styled run (e.g. the keyword highlight). Generic:
-// the renderer draws this for ANY style that declares it, with no special-casing.
+// A background box — drawn behind a styled run (the keyword pill) or as a standalone
+// `shape` overlay. Generic: any style that declares it gets it, no special-casing.
 export interface BackgroundStyle {
   fill: string
   padding?: string // "top right bottom left" shorthand, em-relative
@@ -24,8 +26,10 @@ export interface BackgroundStyle {
   hug?: "cap" | "line" // fit the box to the cap height or the full line height
 }
 
-// Shared shape for a role's base text style and for the named entries in `styles`.
-export interface TextStyle {
+// A named style: text properties plus optional positioning. Overlay-level styles
+// (referenced by a text/shape overlay) carry `box`/`kind`; inline styles (referenced by
+// {t NAME …}) carry only text properties.
+export interface Style {
   font?: string
   weight?: number
   style?: "normal" | "italic"
@@ -35,60 +39,41 @@ export interface TextStyle {
   letterSpacing?: Length
   uppercase?: boolean
   background?: BackgroundStyle
-}
-
-export type RoleKind = "line" | "block"
-
-export interface Role {
-  kind: RoleKind
-  field?: string // which card field feeds this role (defaults to the role's key)
-  box: { x?: Length; y?: Length; w?: Length; h?: Length }
-  align?: "left" | "center" // horizontal (line roles)
-  valign?: "top" | "center" // vertical (block roles)
+  // positioning — present on overlay-level styles only
+  kind?: "line" | "block"
+  box?: { x?: Length; y?: Length; w?: Length; h?: Length }
+  align?: "left" | "center" // horizontal (line styles)
+  valign?: "top" | "center" // vertical (block styles)
   trim?: "cap" | "baseline" // where the text sits relative to box.y
   lineHeight?: number
   paragraphGap?: Length
-  text: TextStyle
 }
 
-export interface SymbolDefinition {
-  src: string
-  height: Length // em-relative to the surrounding text size
-  baseline: Length // vertical shift from the baseline, em-relative (negative = down)
-}
+// An abbreviation ({abbr NAME}) expands to registered content: an inline symbol image
+// (sized em-relative to the surrounding text) or a literal text expansion.
+export type Abbreviation =
+  { type: "image"; src: string; height: Length; baseline: Length } | { type: "text"; value: string }
 
-export interface Template {
-  roles: Record<string, Role>
-}
-
-export interface Presentation {
-  card: { w: Length; h: Length; radius?: Length }
-  fonts: FontFaceSource[]
-  templates: Record<string, Template>
-  styles: Record<string, TextStyle> // referenced by {style:NAME} in markup
-  symbols: Record<string, SymbolDefinition> // referenced by {sym:NAME} in markup
-}
-
-export interface AbilityBlock {
-  type?: string
-  size?: Length // per-card override of the block role's text size
-  content: string[]
-}
+// One typed overlay, drawn in the array's order (painter's order).
+export type Overlay =
+  | { type: "image"; src: string }
+  | { type: "shape"; style: string }
+  | { type: "text"; style: string; content: string | string[]; size?: Length } // size: per-card override
 
 export interface Card {
   id: string
-  template: string
   image: string
-  frames?: string[]
-  name?: string
-  version?: string
-  traits?: string
-  abilities?: AbilityBlock
-  [field: string]: unknown
+  overlays?: Overlay[]
+}
+
+export interface Presentation {
+  fonts: FontFaceSource[]
+  styles: Record<string, Style>
+  abbreviations: Record<string, Abbreviation>
 }
 
 export interface DB {
-  name: string
+  name?: string
   cardBack?: string
   presentation: Presentation
   cards: Card[]

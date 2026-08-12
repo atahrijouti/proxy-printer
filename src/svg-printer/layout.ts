@@ -1,15 +1,22 @@
-// Deterministic layout. We measure and position everything with fontkit metrics;
-// the emitted primitives carry finished coordinates + a font size, and the SVG
-// engine only draws the glyphs. Preview and PDF consume the same primitives.
+// Deterministic layout. We measure and position everything with fontkit metrics; the
+// emitted primitives carry finished coordinates + a font size, and the SVG engine only
+// draws the glyphs. Preview and PDF consume the same primitives.
 //
-// The engine is domain-agnostic: it knows "line" and "block" roles, text styles,
-// and an optional background behind a run. It knows nothing about keywords, traits,
-// or cards beyond reading the field a role points at.
+// The engine is domain-agnostic: it reads a card's ordered `overlays`, each referencing
+// a named style (line or block text, an image, or a content-less shape) plus the
+// {t}/{abbr} inline markup. It knows nothing about keywords, traits, or cards.
 
+import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./frame"
 import type { FontBook } from "./fonts"
 import { parseMarkup } from "./markup"
-import { capHeightInMm, measureWidthInMm, mergeStyles, resolveStyle, type ResolvedStyle } from "./styling"
-import type { AbilityBlock, Card, Presentation, Role, SymbolDefinition, TextStyle } from "./types"
+import {
+  capHeightInMm,
+  measureWidthInMm,
+  mergeStyles,
+  resolveStyle,
+  type ResolvedStyle,
+} from "./styling"
+import type { Abbreviation, Card, Presentation, Style } from "./types"
 import { parseEdges, toMillimetres } from "./units"
 
 // ── Output primitives (all coordinates in mm) ────────────────────────────────
@@ -54,7 +61,7 @@ export interface CardDraw {
   widthInMm: number
   heightInMm: number
   cornerRadiusInMm: number
-  artLayers: ImageBox[] // base art + frame overlays, clipped to the card corner
+  artLayers: ImageBox[] // base art + image overlays, clipped to the card corner
   backgrounds: BackgroundBox[] // drawn behind the text
   symbols: ImageBox[] // inline icons
   textFragments: TextFragment[] // glyphs, drawn by the engine
@@ -86,46 +93,69 @@ type Token = TextToken | GapToken | SymbolToken
 
 interface LayoutContext {
   fonts: FontBook
-  styles: Record<string, TextStyle>
-  symbols: Record<string, SymbolDefinition>
+  styles: Record<string, Style>
+  abbreviations: Record<string, Abbreviation>
 }
 
 // ── Tokenizing one paragraph of markup at a given size ───────────────────────
 function tokenize(
   paragraph: string,
-  baseStyle: TextStyle,
+  baseStyle: Style,
   fontSizeInMm: number,
   context: LayoutContext,
 ): Token[] {
   const tokens: Token[] = []
 
-  for (const run of parseMarkup(paragraph)) {
-    if (run.kind === "sym") {
-      const definition = context.symbols[run.id]
-      if (!definition) throw new Error(`unknown symbol token: {sym:${run.id}}`)
-      const sizeInMm = toMillimetres(definition.height, fontSizeInMm)
-      const dropInMm = toMillimetres(definition.baseline, fontSizeInMm)
-      tokens.push({ kind: "symbol", href: definition.src, sizeInMm, dropInMm, widthInMm: sizeInMm, x: 0 })
-      continue
-    }
-
-    const style = resolveStyle(mergeStyles(baseStyle, run.styles, context.styles), context.fonts, fontSizeInMm)
-    const padding = style.background ? parseEdges(style.background.padding, fontSizeInMm) : null
-
-    // The badge's text sits at the normal flow position (aligned with body text);
-    // the box bleeds left of it (see emitLine's `bleedLeft`). Only the right padding
-    // participates in flow — as a trailing pad token that also pushes following text.
-
-    const text = style.uppercase ? run.text.toUpperCase() : run.text
+  const pushText = (raw: string, style: ResolvedStyle) => {
+    const text = style.uppercase ? raw.toUpperCase() : raw
     for (const part of text.split(/(\s+)/)) {
       if (part === "") continue
       if (/^\s+$/.test(part)) {
         tokens.push({ kind: "space", style, widthInMm: measureWidthInMm(style, " "), x: 0 })
       } else {
-        tokens.push({ kind: "text", text: part, style, widthInMm: measureWidthInMm(style, part), x: 0 })
+        tokens.push({
+          kind: "text",
+          text: part,
+          style,
+          widthInMm: measureWidthInMm(style, part),
+          x: 0,
+        })
       }
     }
+  }
 
+  for (const run of parseMarkup(paragraph)) {
+    const style = resolveStyle(
+      mergeStyles(baseStyle, run.styles, context.styles),
+      context.fonts,
+      fontSizeInMm,
+    )
+
+    if (run.kind === "abbr") {
+      const definition = context.abbreviations[run.id]
+      if (!definition) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
+      if (definition.type === "image") {
+        const sizeInMm = toMillimetres(definition.height, fontSizeInMm)
+        const dropInMm = toMillimetres(definition.baseline, fontSizeInMm)
+        tokens.push({
+          kind: "symbol",
+          href: definition.src,
+          sizeInMm,
+          dropInMm,
+          widthInMm: sizeInMm,
+          x: 0,
+        })
+      } else {
+        pushText(definition.value, style)
+      }
+      continue
+    }
+
+    // The badge's text sits at the normal flow position (aligned with body text); the box
+    // bleeds left of it (see emitLine's `bleedLeft`). Only the right padding participates
+    // in flow — as a trailing pad token that also pushes following text.
+    const padding = style.background ? parseEdges(style.background.padding, fontSizeInMm) : null
+    pushText(run.text, style)
     if (padding) tokens.push({ kind: "pad", style, widthInMm: padding.right, x: 0 })
   }
 
@@ -200,7 +230,8 @@ function emitLine(
   for (const token of line) {
     const hasBackground = token.kind !== "symbol" && token.style.background
     if (hasBackground) {
-      if (!segment) segment = { startX: token.x, endX: token.x + token.widthInMm, style: token.style }
+      if (!segment)
+        segment = { startX: token.x, endX: token.x + token.widthInMm, style: token.style }
       else segment.endX = token.x + token.widthInMm
     } else {
       flushSegment()
@@ -236,7 +267,8 @@ function emitLine(
 }
 
 function resolveCorners(
-  corners: { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string } | undefined,
+  corners:
+    { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string } | undefined,
   emInMm: number,
 ): Corners {
   return {
@@ -247,51 +279,59 @@ function resolveCorners(
   }
 }
 
-// ── Roles ────────────────────────────────────────────────────────────────────
-function layoutLineRole(
+// ── Overlay layout ────────────────────────────────────────────────────────────
+function layoutLine(
   text: string,
-  role: Role,
+  style: Style,
   context: LayoutContext,
   cardWidthInMm: number,
   draw: CardDraw,
 ): void {
-  const fontSizeInMm = toMillimetres(role.text.size)
-  const tokens = tokenize(text, role.text, fontSizeInMm, context)
+  const fontSizeInMm = toMillimetres(style.size)
+  const tokens = tokenize(text, style, fontSizeInMm, context)
   const totalWidth = placeInline(tokens)
 
-  const baseFace = context.fonts.resolve(role.text.font ?? "", role.text.weight ?? 400, role.text.style ?? "normal")
+  const baseFace = context.fonts.resolve(
+    style.font ?? "",
+    style.weight ?? 400,
+    style.style ?? "normal",
+  )
   const originX =
-    role.align === "center" ? (cardWidthInMm - totalWidth) / 2 : toMillimetres(role.box.x)
+    style.align === "center" ? (cardWidthInMm - totalWidth) / 2 : toMillimetres(style.box?.x)
   const cap = capHeightInMm(baseFace, fontSizeInMm)
-  const baseline = toMillimetres(role.box.y) + cap
-  const lineHeightInMm = fontSizeInMm * (role.lineHeight ?? 1)
+  const baseline = toMillimetres(style.box?.y) + cap
+  const lineHeightInMm = fontSizeInMm * (style.lineHeight ?? 1)
 
   emitLine(tokens, originX, baseline, baseline - cap, lineHeightInMm, draw)
 }
 
-function layoutBlockRole(
+function layoutBlock(
   paragraphs: string[],
-  role: Role,
+  style: Style,
   fontSizeInMm: number,
   context: LayoutContext,
   draw: CardDraw,
 ): void {
-  const boxX = toMillimetres(role.box.x)
-  const boxY = toMillimetres(role.box.y)
-  const boxWidth = toMillimetres(role.box.w)
-  const boxHeight = toMillimetres(role.box.h)
-  const baseFace = context.fonts.resolve(role.text.font ?? "", role.text.weight ?? 400, role.text.style ?? "normal")
+  const boxX = toMillimetres(style.box?.x)
+  const boxY = toMillimetres(style.box?.y)
+  const boxWidth = toMillimetres(style.box?.w)
+  const boxHeight = toMillimetres(style.box?.h)
+  const baseFace = context.fonts.resolve(
+    style.font ?? "",
+    style.weight ?? 400,
+    style.style ?? "normal",
+  )
 
-  const lineStep = fontSizeInMm * (role.lineHeight ?? 1)
-  const paragraphGap = toMillimetres(role.paragraphGap, fontSizeInMm)
+  const lineStep = fontSizeInMm * (style.lineHeight ?? 1)
+  const paragraphGap = toMillimetres(style.paragraphGap, fontSizeInMm)
   const wrappedParagraphs = paragraphs.map((paragraph) =>
-    wrap(tokenize(paragraph, role.text, fontSizeInMm, context), boxWidth),
+    wrap(tokenize(paragraph, style, fontSizeInMm, context), boxWidth),
   )
   const lineCount = wrappedParagraphs.reduce((sum, lines) => sum + lines.length, 0)
   const totalHeight = lineCount * lineStep + paragraphGap * (wrappedParagraphs.length - 1)
 
   const cap = capHeightInMm(baseFace, fontSizeInMm)
-  let cursorY = role.valign === "center" ? boxY + Math.max(0, (boxHeight - totalHeight) / 2) : boxY
+  let cursorY = style.valign === "center" ? boxY + Math.max(0, (boxHeight - totalHeight) / 2) : boxY
 
   for (const lines of wrappedParagraphs) {
     for (const line of lines) {
@@ -302,49 +342,82 @@ function layoutBlockRole(
   }
 }
 
-function extractParagraphs(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === "string")
-  if (value && typeof value === "object" && Array.isArray((value as AbilityBlock).content)) {
-    return (value as AbilityBlock).content
-  }
-  return []
+// A standalone shape overlay: a content-less box whose form/size/position come from its
+// named style (needs a `box` and a `background`). Nothing in this DB uses it yet.
+function layoutShape(style: Style, draw: CardDraw): void {
+  const background = style.background
+  if (!background || !style.box) return
+  draw.backgrounds.push({
+    x: toMillimetres(style.box.x),
+    y: toMillimetres(style.box.y),
+    width: toMillimetres(style.box.w),
+    height: toMillimetres(style.box.h),
+    fill: background.fill,
+    corners: resolveCorners(background.corners, 0),
+  })
 }
 
 // ── Public entry ──────────────────────────────────────────────────────────────
 export function composeCard(card: Card, presentation: Presentation, fonts: FontBook): CardDraw {
-  const template = presentation.templates[card.template]
-  if (!template) throw new Error(`unknown template: ${card.template}`)
-
-  const widthInMm = toMillimetres(presentation.card.w)
-  const heightInMm = toMillimetres(presentation.card.h)
   const draw: CardDraw = {
-    widthInMm,
-    heightInMm,
-    cornerRadiusInMm: toMillimetres(presentation.card.radius),
+    widthInMm: CARD_WIDTH_MM,
+    heightInMm: CARD_HEIGHT_MM,
+    cornerRadiusInMm: CARD_RADIUS_MM,
     artLayers: [],
     backgrounds: [],
     symbols: [],
     textFragments: [],
   }
 
-  draw.artLayers.push({ href: card.image, x: 0, y: 0, width: widthInMm, height: heightInMm })
-  for (const frame of card.frames ?? []) {
-    draw.artLayers.push({ href: frame, x: 0, y: 0, width: widthInMm, height: heightInMm })
+  // base image sits directly on the card (bottom of the stack)
+  draw.artLayers.push({
+    href: card.image,
+    x: 0,
+    y: 0,
+    width: CARD_WIDTH_MM,
+    height: CARD_HEIGHT_MM,
+  })
+
+  const context: LayoutContext = {
+    fonts,
+    styles: presentation.styles,
+    abbreviations: presentation.abbreviations,
   }
 
-  const context: LayoutContext = { fonts, styles: presentation.styles, symbols: presentation.symbols }
-  for (const [roleName, role] of Object.entries(template.roles)) {
-    const value = card[role.field ?? roleName]
-    if (role.kind === "line") {
-      if (typeof value === "string" && value) layoutLineRole(value, role, context, widthInMm, draw)
-    } else {
-      const paragraphs = extractParagraphs(value)
+  for (const overlay of card.overlays ?? []) {
+    if (overlay.type === "image") {
+      draw.artLayers.push({
+        href: overlay.src,
+        x: 0,
+        y: 0,
+        width: CARD_WIDTH_MM,
+        height: CARD_HEIGHT_MM,
+      })
+      continue
+    }
+
+    const style = presentation.styles[overlay.style]
+    if (!style) throw new Error(`unknown style: "${overlay.style}"`)
+
+    if (overlay.type === "shape") {
+      layoutShape(style, draw)
+      continue
+    }
+
+    // text
+    if (style.kind === "block") {
+      const paragraphs = (
+        Array.isArray(overlay.content) ? overlay.content : [overlay.content]
+      ).filter(
+        (paragraph): paragraph is string => typeof paragraph === "string" && paragraph.length > 0,
+      )
       if (paragraphs.length) {
-        // Per-card size override (e.g. the dense cards); else the role's default.
-        const override = value && typeof value === "object" ? (value as AbilityBlock).size : undefined
-        const fontSizeInMm = toMillimetres(override ?? role.text.size)
-        layoutBlockRole(paragraphs, role, fontSizeInMm, context, draw)
+        const fontSizeInMm = toMillimetres(overlay.size ?? style.size)
+        layoutBlock(paragraphs, style, fontSizeInMm, context, draw)
       }
+    } else {
+      const text = Array.isArray(overlay.content) ? overlay.content.join(" ") : overlay.content
+      if (text) layoutLine(text, style, context, CARD_WIDTH_MM, draw)
     }
   }
 

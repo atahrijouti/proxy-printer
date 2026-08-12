@@ -1,8 +1,8 @@
-// Resolving a run's effective style (base role style + any {style:NAME} overrides)
-// and measuring text — all from fontkit metrics, independent of the browser.
+// Resolving a run's effective style (base overlay style + any {t NAME} overrides) and
+// measuring text — all from fontkit metrics, independent of the browser.
 
 import type { FontBook, ResolvedFace } from "./fonts"
-import type { BackgroundStyle, TextStyle } from "./types"
+import type { BackgroundStyle, Style } from "./types"
 import { toMillimetres } from "./units"
 
 export interface ResolvedStyle {
@@ -15,22 +15,23 @@ export interface ResolvedStyle {
   background?: BackgroundStyle
 }
 
-// Merge a base text style with the named styles referenced by a run, left to right.
+// Merge a base style with the named styles referenced by a run, left to right. Only the
+// text properties matter here; any positioning fields on a merged style are ignored.
 export function mergeStyles(
-  base: TextStyle,
+  base: Style,
   styleNames: string[],
-  registry: Record<string, TextStyle>,
-): TextStyle {
-  const merged: TextStyle = { ...base }
+  registry: Record<string, Style>,
+): Style {
+  const merged: Style = { ...base }
   for (const name of styleNames) {
     const override = registry[name]
-    if (!override) throw new Error(`unknown style token: {style:${name}}`)
+    if (!override) throw new Error(`unknown style: {t ${name} …}`)
     Object.assign(merged, override)
   }
   return merged
 }
 
-export function resolveStyle(style: TextStyle, fonts: FontBook, fontSizeInMm: number): ResolvedStyle {
+export function resolveStyle(style: Style, fonts: FontBook, fontSizeInMm: number): ResolvedStyle {
   return {
     face: fonts.resolve(style.font ?? "", style.weight ?? 400, style.style ?? "normal"),
     fontSizeInMm,
@@ -44,7 +45,7 @@ export function resolveStyle(style: TextStyle, fonts: FontBook, fontSizeInMm: nu
 
 export function measureWidthInMm(style: ResolvedStyle, text: string): number {
   if (text === "") return 0
-  // Plain advances (no kerning) so the browser (font-kerning:none) and pdf-lib agree.
+  // Plain advances (no kerning) so the browser (font-kerning:none) and pdfkit agree.
   const glyphs = style.face.metrics.glyphsForString(text)
   const unitScale = style.fontSizeInMm / style.face.metrics.unitsPerEm
   let advance = 0
