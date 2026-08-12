@@ -12,7 +12,6 @@ const DEFAULT_URL = "http://localhost:8787/db-typst-print.json"
 
 type Loaded = { db: DB; imagePath: ImagePath }
 
-// Every image the run references — base art, image overlays, symbol abbreviations, back.
 function imageUrls(db: DB): string[] {
   const urls: string[] = []
   if (db.cardBack) urls.push(db.cardBack)
@@ -36,7 +35,6 @@ const App: Component = () => {
   const [svg, setSvg] = createSignal("")
   const [status, setStatus] = createSignal("Loading…")
 
-  // Fetch + engine setup — only when the DB URL changes.
   createEffect(() => {
     const url = dbUrl()
     setLoaded(null)
@@ -61,8 +59,6 @@ const App: Component = () => {
     })()
   })
 
-  // Compose + compile — re-runs when the DB, the deck, or the card-back toggle changes.
-  // One document drives both preview and PDF, so the preview reflects the artifact.
   createEffect(() => {
     const current = loaded()
     if (!current) return
@@ -96,9 +92,17 @@ const App: Component = () => {
   return (
     <>
       <aside class="controls no-print">
-        <input type="text" value={dbUrl()} onInput={(event) => setDbUrl(event.currentTarget.value)} />
+        <input
+          type="text"
+          value={dbUrl()}
+          onInput={(event) => setDbUrl(event.currentTarget.value)}
+        />
         <label>
-          <input type="checkbox" checked={isCardBack()} onChange={() => setIsCardBack(!isCardBack())} />
+          <input
+            type="checkbox"
+            checked={isCardBack()}
+            onChange={() => setIsCardBack(!isCardBack())}
+          />
           Card backs
         </label>
         <textarea

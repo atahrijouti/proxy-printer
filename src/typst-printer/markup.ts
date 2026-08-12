@@ -1,9 +1,3 @@
-// Inline markup → flat runs. Grammar (closed set):
-//   {t NAME content}   tagged span; content is markup (nests), NAME picks up a style
-//   {abbr NAME}        substitution; NAME resolves via the abbreviations registry
-//   \{ \}              literal braces
-// Each run carries the stack of style names active over it (outermost first).
-
 export interface TextRun {
   kind: "text"
   text: string
