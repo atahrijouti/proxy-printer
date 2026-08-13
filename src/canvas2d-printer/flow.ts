@@ -83,7 +83,6 @@ function measure(input: LayoutInput, sizePx: number) {
   const { measurer, base, toPx, resolve, resolveAbbr } = input
   measurer.use(base, sizePx)
   const cap = measurer.capHeight
-  const ascent = measurer.ascent
 
   let runId = 0
   const paragraphs = input.paragraphs.map((markup) => {
@@ -127,7 +126,7 @@ function measure(input: LayoutInput, sizePx: number) {
     }
     return tokens
   })
-  return { paragraphs, cap, ascent }
+  return { paragraphs, cap }
 }
 
 function wrap(tokens: Token[], maxWidth: number): Line[] {
@@ -230,7 +229,7 @@ function itemsOf(
 }
 
 function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
-  const { paragraphs, cap, ascent } = measure(input, sizePx)
+  const { paragraphs, cap } = measure(input, sizePx)
   const wrapped = paragraphs.map((tokens) => wrap(tokens, input.boxWidth))
   const lineStep = sizePx * input.lineHeight
 
@@ -245,7 +244,7 @@ function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
   for (const lines of wrapped) {
     for (const line of lines) {
       const alignOffset = input.align === "center" ? (input.boxWidth - line.width) / 2 : 0
-      const baseline = y + ascent
+      const baseline = y + cap
       boxes.push(...backgroundsOf(line, alignOffset, baseline, cap, input.toPx))
       items.push(...itemsOf(line, alignOffset, baseline, cap, sizePx))
       y += lineStep

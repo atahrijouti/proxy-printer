@@ -96,10 +96,6 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
   const block = style.kind === "block"
   const baseSizePx = env.toPx(style.size)
 
-  env.measurer.use(style, baseSizePx)
-  const cap = env.measurer.capHeight
-  const ascent = env.measurer.ascent
-
   const result = layout({
     paragraphs,
     base: style,
@@ -126,7 +122,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     : style.align === "center"
       ? 0
       : env.toPx(style.box?.x)
-  const originY = block ? env.toPx(style.box?.y) : env.toPx(style.box?.y) - (ascent - cap)
+  const originY = env.toPx(style.box?.y)
 
   for (const box of result.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
   for (const item of result.items) drawItem[item.kind](ctx, item, originX, originY, env.images)
