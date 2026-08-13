@@ -1,4 +1,4 @@
-import type { Length, Overlay, Props } from "../model"
+import type { Length, Overlay, Props } from "./model"
 
 export interface Style extends Props {
   kind?: "line" | "block"

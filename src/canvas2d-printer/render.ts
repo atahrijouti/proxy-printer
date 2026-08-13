@@ -1,5 +1,5 @@
-import { layout, type Measurer, type PlacedImage, type PlacedText, type RunBox } from "../flow"
-import type { Overlay, Props } from "../model"
+import { layout, type Measurer, type PlacedImage, type PlacedText, type RunBox } from "./flow"
+import type { Overlay, Props } from "./model"
 import { lengthToPx } from "./units"
 import type { Card, Presentation } from "./types"
 
