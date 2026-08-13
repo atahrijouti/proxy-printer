@@ -3,7 +3,7 @@ import { render } from "solid-js/web"
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 
 import "./index.css"
-import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
+import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
 import { CanvasMeasurer, drawCard } from "./render"
@@ -16,7 +16,7 @@ const SCALE = 8
 const PDF_SCALE = 12
 const REVOKE_DELAY_MS = 10_000
 
-interface Loaded {
+interface RenderData {
   db: DB
   images: Map<string, HTMLImageElement>
   measurer: CanvasMeasurer
@@ -41,11 +41,17 @@ function renderCard(
   measurer: CanvasMeasurer,
   scale: number,
 ): HTMLCanvasElement {
+  const width = CARD_WIDTH_MM * scale
+  const height = CARD_HEIGHT_MM * scale
   const offscreen = document.createElement("canvas")
-  offscreen.width = CARD_WIDTH_MM * scale
-  offscreen.height = CARD_HEIGHT_MM * scale
+  offscreen.width = width
+  offscreen.height = height
   const ctx = offscreen.getContext("2d")!
-  drawCard(ctx, card, presentation, images, measurer, scale)
+  drawCard(ctx, card, presentation, images, measurer, {
+    width,
+    height,
+    radius: CARD_RADIUS_MM * scale,
+  })
   return offscreen
 }
 
@@ -53,12 +59,12 @@ const App: Component = () => {
   const [dbUrl, setDbUrl] = createSignal(DEFAULT_URL)
   const [deck, setDeck] = createSignal("")
   const [isCardBack, setIsCardBack] = createSignal(false)
-  const [loaded, setLoaded] = createSignal<Loaded | null>(null)
+  const [renderData, setRenderData] = createSignal<RenderData | null>(null)
   const [status, setStatus] = createSignal("Loading…")
 
   createEffect(() => {
     const url = dbUrl()
-    setLoaded(null)
+    setRenderData(null)
     setStatus("Loading…")
     ;(async () => {
       try {
@@ -68,7 +74,7 @@ const App: Component = () => {
         setStatus("Loading fonts + images…")
         await loadFonts(db.presentation.fonts)
         const images = await loadImages(imageUrls(db))
-        setLoaded({ db, images, measurer: new CanvasMeasurer(images) })
+        setRenderData({ db, images, measurer: new CanvasMeasurer(images) })
         setStatus("")
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error))
@@ -77,25 +83,23 @@ const App: Component = () => {
   })
 
   const cards = () => {
-    const ready = loaded()
-    if (!ready) return []
-    return isCardBack() ? cardBacks(ready.db) : selectFromDeck(ready.db.cards, deck())
+    const data = renderData()
+    if (!data) return []
+    return isCardBack() ? cardBacks(data.db) : selectFromDeck(data.db.cards, deck())
   }
 
   // resolve the presentation to on-screen px once per load, shared by every card canvas
   const screenPresentation = createMemo(() => {
-    const ready = loaded()
-    return ready ? resolvePresentation(ready.db.presentation, SCALE) : null
+    const data = renderData()
+    return data ? resolvePresentation(data.db.presentation, SCALE) : null
   })
 
   async function downloadPdf() {
-    const ready = loaded()
-    if (!ready) return
-    const presentation = resolvePresentation(ready.db.presentation, PDF_SCALE)
+    const data = renderData()
+    if (!data) return
+    const presentation = resolvePresentation(data.db.presentation, PDF_SCALE)
     const urls = cards().map((card) =>
-      renderCard(card, presentation, ready.images, ready.measurer, PDF_SCALE).toDataURL(
-        "image/png",
-      ),
+      renderCard(card, presentation, data.images, data.measurer, PDF_SCALE).toDataURL("image/png"),
     )
     const blob = await buildPdf(urls)
     const href = URL.createObjectURL(blob)
@@ -129,7 +133,7 @@ const App: Component = () => {
           onInput={(event) => setDeck(event.currentTarget.value)}
           disabled={isCardBack()}
         />
-        <button onClick={downloadPdf} disabled={!loaded()}>
+        <button onClick={downloadPdf} disabled={!renderData()}>
           Download PDF
         </button>
         <Show when={status()}>
@@ -142,15 +146,15 @@ const App: Component = () => {
             {(card) => {
               let canvas!: HTMLCanvasElement
               createEffect(() => {
-                const ready = loaded()
+                const data = renderData()
                 const presentation = screenPresentation()
-                if (!ready || !presentation) return
+                if (!data || !presentation) return
                 canvas.width = CARD_WIDTH_MM * SCALE
                 canvas.height = CARD_HEIGHT_MM * SCALE
                 canvas
                   .getContext("2d")!
                   .drawImage(
-                    renderCard(card, presentation, ready.images, ready.measurer, SCALE),
+                    renderCard(card, presentation, data.images, data.measurer, SCALE),
                     0,
                     0,
                   )

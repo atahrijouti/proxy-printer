@@ -7,7 +7,6 @@ import {
 } from "./flow"
 import type { Card, Overlay, ResolvedTextStyle } from "./types"
 import type { ResolvedPresentation } from "./resolve"
-import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 
 // a box edge for line-mode text: no wrapping, no height limit
 const UNBOUNDED = Infinity
@@ -51,11 +50,18 @@ export class CanvasMeasurer implements Measurer {
   }
 }
 
+export interface CardFrame {
+  width: number
+  height: number
+  radius: number
+}
+
 interface DrawEnv {
   presentation: ResolvedPresentation
   images: Images
   measurer: CanvasMeasurer
-  scale: number
+  cardWidth: number
+  cardHeight: number
 }
 
 function drawBackground(ctx: Ctx, box: BackgroundBox, originX: number, originY: number) {
@@ -108,11 +114,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     baseStyle: style,
     baseSizePx,
     minSizePx: baseSizePx * MIN_SIZE_RATIO,
-    boxWidth: isBlock
-      ? (style.box?.w ?? 0)
-      : style.align === "center"
-        ? CARD_WIDTH_MM * env.scale
-        : UNBOUNDED,
+    boxWidth: isBlock ? (style.box?.w ?? 0) : style.align === "center" ? env.cardWidth : UNBOUNDED,
     boxHeight: isBlock ? (style.box?.h ?? 0) : UNBOUNDED,
     lineHeight: style.lineHeight ?? 1,
     paragraphGap: style.paragraphGap ?? 0,
@@ -134,7 +136,7 @@ function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
   switch (overlay.type) {
     case "image": {
       const image = env.images.get(overlay.src)
-      if (image) ctx.drawImage(image, 0, 0, CARD_WIDTH_MM * env.scale, CARD_HEIGHT_MM * env.scale)
+      if (image) ctx.drawImage(image, 0, 0, env.cardWidth, env.cardHeight)
       return
     }
     case "shape":
@@ -151,18 +153,22 @@ export function drawCard(
   presentation: ResolvedPresentation,
   images: Images,
   measurer: CanvasMeasurer,
-  scale: number,
+  frame: CardFrame,
 ) {
-  const env: DrawEnv = { presentation, images, measurer, scale }
-  const width = CARD_WIDTH_MM * scale
-  const height = CARD_HEIGHT_MM * scale
+  const env: DrawEnv = {
+    presentation,
+    images,
+    measurer,
+    cardWidth: frame.width,
+    cardHeight: frame.height,
+  }
 
   ctx.save()
   ctx.beginPath()
-  ctx.roundRect(0, 0, width, height, CARD_RADIUS_MM * scale)
+  ctx.roundRect(0, 0, frame.width, frame.height, frame.radius)
   ctx.clip()
   const cardImage = images.get(card.image)
-  if (cardImage) ctx.drawImage(cardImage, 0, 0, width, height)
+  if (cardImage) ctx.drawImage(cardImage, 0, 0, frame.width, frame.height)
   for (const overlay of card.overlays ?? []) drawOverlay(ctx, overlay, env)
   ctx.restore()
 }
