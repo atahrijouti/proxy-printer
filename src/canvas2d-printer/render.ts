@@ -107,7 +107,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     (p) => p.length > 0,
   )
   const isBlock = style.mode === "block"
-  const baseSizePx = style.fontSize ?? 0
+  const baseSizePx = style.fontSize ?? env.presentation.defaultFontSize
 
   const laidOut = layout(
     {

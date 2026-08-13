@@ -1,10 +1,15 @@
 import type { Length, Presentation, ResolvedStyle, Style } from "./types"
 import { lengthToPx } from "./units"
 
+// fallback base size for a text style that omits fontSize (Card Conjurer's Rules default,
+// 59px on a 1500px / 600-dpi card ≈ 2.5mm)
+const DEFAULT_FONT_SIZE: Length = "2.5mm"
+
 // device-px presentation: every authored Length has been scaled to a number
 export interface ResolvedPresentation {
   styles: Record<string, ResolvedStyle>
   abbreviations: Record<string, string>
+  defaultFontSize: number
 }
 
 // scale every length in the presentation to device px once, up front — so the renderer and the
@@ -17,7 +22,11 @@ export function resolvePresentation(
   for (const [name, style] of Object.entries(presentation.styles)) {
     styles[name] = resolveStyle(style, scale)
   }
-  return { styles, abbreviations: presentation.abbreviations }
+  return {
+    styles,
+    abbreviations: presentation.abbreviations,
+    defaultFontSize: lengthToPx(DEFAULT_FONT_SIZE, scale),
+  }
 }
 
 function resolveStyle(style: Style, scale: number): ResolvedStyle {
