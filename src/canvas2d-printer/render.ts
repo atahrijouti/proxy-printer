@@ -113,7 +113,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
 
   const laidOut = layout({
     paragraphs,
-    base: style,
+    baseStyle: style,
     baseSizePx,
     minSizePx: baseSizePx * MIN_SIZE_RATIO,
     boxWidth: isBlock
@@ -176,8 +176,8 @@ export function drawCard(
   ctx.beginPath()
   ctx.roundRect(0, 0, width, height, CARD_RADIUS_MM * scale)
   ctx.clip()
-  const base = images.get(card.image)
-  if (base) ctx.drawImage(base, 0, 0, width, height)
+  const cardImage = images.get(card.image)
+  if (cardImage) ctx.drawImage(cardImage, 0, 0, width, height)
   for (const overlay of card.overlays ?? []) drawOverlay(ctx, overlay, env)
   ctx.restore()
 }

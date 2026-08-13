@@ -45,7 +45,7 @@ export interface Layout {
 
 export interface LayoutInput {
   paragraphs: string[]
-  base: TextStyle
+  baseStyle: TextStyle
   baseSizePx: number
   minSizePx: number
   boxWidth: number
@@ -79,21 +79,21 @@ interface Line {
 }
 
 const mergeStyles = (
-  base: TextStyle,
+  baseStyle: TextStyle,
   names: string[],
   resolve: (n: string) => TextStyle,
-): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), base)
+): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), baseStyle)
 
 function measure(input: LayoutInput, sizePx: number) {
-  const { measurer, base, toPx, resolve, resolveAbbr } = input
-  measurer.setFont(base, sizePx)
+  const { measurer, baseStyle, toPx, resolve, resolveAbbr } = input
+  measurer.setFont(baseStyle, sizePx)
   const cap = measurer.capHeight
 
   let nodeId = 0
   const paragraphs = input.paragraphs.map((markup) => {
     const tokens: Token[] = []
     for (const node of parseMarkup(markup)) {
-      const style = mergeStyles(base, node.styles, resolve)
+      const style = mergeStyles(baseStyle, node.styles, resolve)
       const marginBefore = toPx(style.margin?.before, sizePx)
       const marginAfter = toPx(style.margin?.after, sizePx)
       const id = nodeId++
@@ -136,25 +136,25 @@ function measure(input: LayoutInput, sizePx: number) {
 
 function wrap(tokens: Token[], maxWidth: number): Line[] {
   const lines: Line[] = []
-  let current: PlacedToken[] = []
+  let pending: PlacedToken[] = []
   let cursor = 0
 
   const commit = () => {
-    while (current.length && current[current.length - 1].isSpace) {
-      const dropped = current.pop()!
+    while (pending.length && pending[pending.length - 1].isSpace) {
+      const dropped = pending.pop()!
       cursor -= dropped.marginBefore + dropped.width + dropped.marginAfter
     }
-    if (current.length) lines.push({ tokens: current, width: cursor })
-    current = []
+    if (pending.length) lines.push({ tokens: pending, width: cursor })
+    pending = []
     cursor = 0
   }
 
   for (const token of tokens) {
-    if (token.isSpace && current.length === 0) continue
-    const margin = current.length === 0 ? 0 : token.marginBefore
-    if (!token.isSpace && current.length && cursor + margin + token.width > maxWidth) commit()
-    cursor += current.length === 0 ? 0 : token.marginBefore
-    current.push({ ...token, offset: cursor })
+    if (token.isSpace && pending.length === 0) continue
+    const margin = pending.length === 0 ? 0 : token.marginBefore
+    if (!token.isSpace && pending.length && cursor + margin + token.width > maxWidth) commit()
+    cursor += pending.length === 0 ? 0 : token.marginBefore
+    pending.push({ ...token, offset: cursor })
     cursor += token.width + token.marginAfter
   }
   commit()
