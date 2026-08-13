@@ -265,8 +265,8 @@ function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
 
 export function layout(input: LayoutInput): Layout {
   for (let size = input.baseSizePx; size > input.minSizePx; size -= SHRINK_STEP_PX) {
-    const result = layoutAt(input, size)
-    if (result) return result
+    const fitted = layoutAt(input, size)
+    if (fitted) return fitted
   }
   return layoutAt(input, input.minSizePx)!
 }

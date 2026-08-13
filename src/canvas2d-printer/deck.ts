@@ -5,15 +5,15 @@ const BACKS_PER_PAGE = 9
 export function selectFromDeck(cards: Card[], deck: string): Card[] {
   if (!cards.length) return []
   if (deck.trim() === "") return cards
-  const out: Card[] = []
+  const selected: Card[] = []
   for (const line of deck.split("\n")) {
     const match = line.match(/^(\d+)\s+(.*)$/)
     if (!match) continue
     const card = cards.find((entry) => entry.id === match[2].trim().toLowerCase())
     if (!card) continue
-    for (let i = 0; i < Number(match[1]); i++) out.push(card)
+    for (let i = 0; i < Number(match[1]); i++) selected.push(card)
   }
-  return out
+  return selected
 }
 
 export function cardBacks(db: DB): Card[] {

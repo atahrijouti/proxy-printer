@@ -37,11 +37,11 @@ export class CanvasMeasurer implements Measurer {
   }
   setFont(style: TextStyle, sizePx: number) {
     this.ctx.font = fontString(style, sizePx)
-    const capitals = this.ctx.measureText("H")
-    const line = this.ctx.measureText("Hg")
-    this.capHeight = capitals.actualBoundingBoxAscent || sizePx * FALLBACK_CAP_RATIO
-    this.ascent = line.fontBoundingBoxAscent || sizePx * FALLBACK_ASCENT_RATIO
-    this.descent = line.fontBoundingBoxDescent || sizePx * FALLBACK_DESCENT_RATIO
+    const capMetrics = this.ctx.measureText("H")
+    const lineMetrics = this.ctx.measureText("Hg")
+    this.capHeight = capMetrics.actualBoundingBoxAscent || sizePx * FALLBACK_CAP_RATIO
+    this.ascent = lineMetrics.fontBoundingBoxAscent || sizePx * FALLBACK_ASCENT_RATIO
+    this.descent = lineMetrics.fontBoundingBoxDescent || sizePx * FALLBACK_DESCENT_RATIO
   }
   measureWidth(text: string) {
     return this.ctx.measureText(text).width
@@ -53,7 +53,7 @@ export class CanvasMeasurer implements Measurer {
 }
 
 interface DrawEnv {
-  pres: Presentation
+  presentation: Presentation
   images: Images
   measurer: CanvasMeasurer
   scale: number
@@ -103,40 +103,40 @@ function drawItem(
 }
 
 function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
-  const style = env.pres.styles[overlay.style]
+  const style = env.presentation.styles[overlay.style]
   if (!style) throw new Error(`unknown style: "${overlay.style}"`)
   const paragraphs = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
     (p) => p.length > 0,
   )
-  const block = style.mode === "block"
+  const isBlock = style.mode === "block"
   const baseSizePx = env.toPx(style.fontSize)
 
-  const result = layout({
+  const laidOut = layout({
     paragraphs,
     base: style,
     baseSizePx,
     minSizePx: baseSizePx * MIN_SIZE_RATIO,
-    boxWidth: block
+    boxWidth: isBlock
       ? env.toPx(style.box?.w)
       : style.align === "center"
         ? CARD_WIDTH_MM * env.scale
         : UNBOUNDED,
-    boxHeight: block ? env.toPx(style.box?.h) : UNBOUNDED,
+    boxHeight: isBlock ? env.toPx(style.box?.h) : UNBOUNDED,
     lineHeight: style.lineHeight ?? 1,
     paragraphGap: env.toPx(style.paragraphGap),
     align: style.align ?? "left",
     valign: style.valign ?? "top",
-    resolve: (name) => env.pres.styles[name] ?? {},
-    resolveAbbr: (id) => env.pres.abbreviations[id],
+    resolve: (name) => env.presentation.styles[name] ?? {},
+    resolveAbbr: (id) => env.presentation.abbreviations[id],
     measurer: env.measurer,
     toPx: env.toPx,
   })
 
-  const originX = block || style.align !== "center" ? env.toPx(style.box?.x) : 0
+  const originX = isBlock || style.align !== "center" ? env.toPx(style.box?.x) : 0
   const originY = env.toPx(style.box?.y)
 
-  for (const box of result.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
-  for (const item of result.items) drawItem(ctx, item, originX, originY, env.images)
+  for (const box of laidOut.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
+  for (const item of laidOut.items) drawItem(ctx, item, originX, originY, env.images)
 }
 
 function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
@@ -157,13 +157,13 @@ function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
 export function drawCard(
   ctx: Ctx,
   card: Card,
-  pres: Presentation,
+  presentation: Presentation,
   images: Images,
   measurer: CanvasMeasurer,
   scale: number,
 ) {
   const env: DrawEnv = {
-    pres,
+    presentation,
     images,
     measurer,
     scale,

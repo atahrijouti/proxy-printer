@@ -33,12 +33,12 @@ function imageUrls(db: DB): string[] {
 }
 
 // double-buffered: draw the card to an offscreen canvas, then blit to the target
-function renderCard(card: Card, loaded: Loaded, scale: number): HTMLCanvasElement {
+function renderCard(card: Card, ready: Loaded, scale: number): HTMLCanvasElement {
   const offscreen = document.createElement("canvas")
   offscreen.width = CARD_WIDTH_MM * scale
   offscreen.height = CARD_HEIGHT_MM * scale
   const ctx = offscreen.getContext("2d")!
-  drawCard(ctx, card, loaded.db.presentation, loaded.images, loaded.measurer, scale)
+  drawCard(ctx, card, ready.db.presentation, ready.images, ready.measurer, scale)
   return offscreen
 }
 
@@ -70,15 +70,15 @@ const App: Component = () => {
   })
 
   const cards = () => {
-    const current = loaded()
-    if (!current) return []
-    return isCardBack() ? cardBacks(current.db) : selectFromDeck(current.db.cards, deck())
+    const ready = loaded()
+    if (!ready) return []
+    return isCardBack() ? cardBacks(ready.db) : selectFromDeck(ready.db.cards, deck())
   }
 
   async function downloadPdf() {
-    const current = loaded()
-    if (!current) return
-    const urls = cards().map((card) => renderCard(card, current, PDF_SCALE).toDataURL("image/png"))
+    const ready = loaded()
+    if (!ready) return
+    const urls = cards().map((card) => renderCard(card, ready, PDF_SCALE).toDataURL("image/png"))
     const blob = await buildPdf(urls)
     const href = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
@@ -122,15 +122,15 @@ const App: Component = () => {
         <div class="page">
           <For each={cards()}>
             {(card) => {
-              let el!: HTMLCanvasElement
+              let canvas!: HTMLCanvasElement
               createEffect(() => {
-                const current = loaded()
-                if (!current) return
-                el.width = CARD_WIDTH_MM * SCALE
-                el.height = CARD_HEIGHT_MM * SCALE
-                el.getContext("2d")!.drawImage(renderCard(card, current, SCALE), 0, 0)
+                const ready = loaded()
+                if (!ready) return
+                canvas.width = CARD_WIDTH_MM * SCALE
+                canvas.height = CARD_HEIGHT_MM * SCALE
+                canvas.getContext("2d")!.drawImage(renderCard(card, ready, SCALE), 0, 0)
               })
-              return <canvas ref={el} class="card" />
+              return <canvas ref={canvas} class="card" />
             }}
           </For>
         </div>
