@@ -41,7 +41,8 @@ export interface Layout {
   sizePx: number
 }
 
-export interface LayoutInput {
+// the text being laid out, and everything intrinsic to how it flows
+export interface TextBlock {
   paragraphs: string[]
   baseStyle: ResolvedTextStyle
   baseSizePx: number
@@ -52,6 +53,10 @@ export interface LayoutInput {
   paragraphGap: number
   align: "left" | "center"
   valign: "top" | "center"
+}
+
+// the shared tools and registries a layout resolves and measures against
+export interface LayoutEnv {
   styles: Record<string, ResolvedTextStyle>
   abbreviations: Record<string, string>
   measurer: Measurer
@@ -82,13 +87,14 @@ const mergeStyles = (
 ): ResolvedTextStyle =>
   names.reduce((acc, name) => ({ ...acc, ...(styles[name] ?? {}) }), baseStyle)
 
-function measure(input: LayoutInput, sizePx: number) {
-  const { measurer, baseStyle, styles, abbreviations } = input
+function measure(block: TextBlock, env: LayoutEnv, sizePx: number) {
+  const { measurer, styles, abbreviations } = env
+  const { baseStyle } = block
   measurer.setFont(baseStyle, sizePx)
   const cap = measurer.capHeight
 
   let nodeId = 0
-  const paragraphs = input.paragraphs.map((markup) => {
+  const paragraphs = block.paragraphs.map((markup) => {
     const tokens: Token[] = []
     for (const node of parseMarkup(markup)) {
       const style = mergeStyles(baseStyle, node.styles, styles)
@@ -238,37 +244,37 @@ function contentOf(
     )
 }
 
-function tryLayout(input: LayoutInput, sizePx: number): Layout | null {
-  const { paragraphs, cap } = measure(input, sizePx)
-  const wrapped = paragraphs.map((tokens) => wrap(tokens, input.boxWidth))
-  const lineStep = sizePx * input.lineHeight
+function tryLayout(block: TextBlock, env: LayoutEnv, sizePx: number): Layout | null {
+  const { paragraphs, cap } = measure(block, env, sizePx)
+  const wrapped = paragraphs.map((tokens) => wrap(tokens, block.boxWidth))
+  const lineStep = sizePx * block.lineHeight
 
   const lineCount = wrapped.reduce((total, lines) => total + lines.length, 0)
-  const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * input.paragraphGap
-  if (blockHeight > input.boxHeight && sizePx > input.minSizePx) return null
+  const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * block.paragraphGap
+  if (blockHeight > block.boxHeight && sizePx > block.minSizePx) return null
 
   const backgrounds: BackgroundBox[] = []
   const content: (PlacedText | PlacedImage)[] = []
-  let y = input.valign === "center" ? Math.max(0, (input.boxHeight - blockHeight) / 2) : 0
+  let y = block.valign === "center" ? Math.max(0, (block.boxHeight - blockHeight) / 2) : 0
 
   for (const lines of wrapped) {
     for (const line of lines) {
-      const alignOffset = input.align === "center" ? (input.boxWidth - line.width) / 2 : 0
+      const alignOffset = block.align === "center" ? (block.boxWidth - line.width) / 2 : 0
       const baseline = y + cap
       backgrounds.push(...backgroundsOf(line, alignOffset, baseline, cap))
       content.push(...contentOf(line, alignOffset, baseline, cap, sizePx))
       y += lineStep
     }
-    y += input.paragraphGap
+    y += block.paragraphGap
   }
 
   return { backgrounds, content, sizePx }
 }
 
-export function layout(input: LayoutInput): Layout {
-  for (let size = input.baseSizePx; size > input.minSizePx; size -= SHRINK_STEP_PX) {
-    const fitted = tryLayout(input, size)
+export function layout(block: TextBlock, env: LayoutEnv): Layout {
+  for (let size = block.baseSizePx; size > block.minSizePx; size -= SHRINK_STEP_PX) {
+    const fitted = tryLayout(block, env, size)
     if (fitted) return fitted
   }
-  return tryLayout(input, input.minSizePx)!
+  return tryLayout(block, env, block.minSizePx)!
 }

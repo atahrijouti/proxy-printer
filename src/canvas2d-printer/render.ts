@@ -109,21 +109,29 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
   const isBlock = style.mode === "block"
   const baseSizePx = style.fontSize ?? 0
 
-  const laidOut = layout({
-    paragraphs,
-    baseStyle: style,
-    baseSizePx,
-    minSizePx: baseSizePx * MIN_SIZE_RATIO,
-    boxWidth: isBlock ? (style.box?.w ?? 0) : style.align === "center" ? env.cardWidth : UNBOUNDED,
-    boxHeight: isBlock ? (style.box?.h ?? 0) : UNBOUNDED,
-    lineHeight: style.lineHeight ?? 1,
-    paragraphGap: style.paragraphGap ?? 0,
-    align: style.align ?? "left",
-    valign: style.valign ?? "top",
-    styles: env.presentation.styles,
-    abbreviations: env.presentation.abbreviations,
-    measurer: env.measurer,
-  })
+  const laidOut = layout(
+    {
+      paragraphs,
+      baseStyle: style,
+      baseSizePx,
+      minSizePx: baseSizePx * MIN_SIZE_RATIO,
+      boxWidth: isBlock
+        ? (style.box?.w ?? 0)
+        : style.align === "center"
+          ? env.cardWidth
+          : UNBOUNDED,
+      boxHeight: isBlock ? (style.box?.h ?? 0) : UNBOUNDED,
+      lineHeight: style.lineHeight ?? 1,
+      paragraphGap: style.paragraphGap ?? 0,
+      align: style.align ?? "left",
+      valign: style.valign ?? "top",
+    },
+    {
+      styles: env.presentation.styles,
+      abbreviations: env.presentation.abbreviations,
+      measurer: env.measurer,
+    },
+  )
 
   const originX = isBlock || style.align !== "center" ? (style.box?.x ?? 0) : 0
   const originY = style.box?.y ?? 0
