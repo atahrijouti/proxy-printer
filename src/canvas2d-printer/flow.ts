@@ -38,8 +38,8 @@ export interface BackgroundBox {
   background: Background
 }
 export interface Layout {
-  boxes: BackgroundBox[]
-  items: (PlacedText | PlacedImage)[]
+  backgrounds: BackgroundBox[]
+  content: (PlacedText | PlacedImage)[]
   sizePx: number
 }
 
@@ -54,7 +54,7 @@ export interface LayoutInput {
   paragraphGap: number
   align: "left" | "center"
   valign: "top" | "center"
-  resolve: (name: string) => TextStyle
+  resolveStyle: (name: string) => TextStyle
   resolveAbbr: (id: string) => string
   measurer: Measurer
   toPx: ToPx
@@ -81,11 +81,11 @@ interface Line {
 const mergeStyles = (
   baseStyle: TextStyle,
   names: string[],
-  resolve: (n: string) => TextStyle,
-): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), baseStyle)
+  resolveStyle: (name: string) => TextStyle,
+): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolveStyle(name) }), baseStyle)
 
 function measure(input: LayoutInput, sizePx: number) {
-  const { measurer, baseStyle, toPx, resolve, resolveAbbr } = input
+  const { measurer, baseStyle, toPx, resolveStyle, resolveAbbr } = input
   measurer.setFont(baseStyle, sizePx)
   const cap = measurer.capHeight
 
@@ -93,7 +93,7 @@ function measure(input: LayoutInput, sizePx: number) {
   const paragraphs = input.paragraphs.map((markup) => {
     const tokens: Token[] = []
     for (const node of parseMarkup(markup)) {
-      const style = mergeStyles(baseStyle, node.styles, resolve)
+      const style = mergeStyles(baseStyle, node.styles, resolveStyle)
       const marginBefore = toPx(style.margin?.before, sizePx)
       const marginAfter = toPx(style.margin?.after, sizePx)
       const id = nodeId++
@@ -168,7 +168,7 @@ function backgroundsOf(
   cap: number,
   toPx: ToPx,
 ): BackgroundBox[] {
-  const boxes: BackgroundBox[] = []
+  const backgrounds: BackgroundBox[] = []
   let segment: { nodeId: number; start: number; end: number; background: Background } | null = null
 
   const commit = () => {
@@ -178,7 +178,7 @@ function backgroundsOf(
     const right = toPx(outset.right)
     const bottom = toPx(outset.bottom)
     const left = toPx(outset.left)
-    boxes.push({
+    backgrounds.push({
       x: segment.start - left,
       y: baseline - cap - top,
       w: segment.end - segment.start + left + right,
@@ -203,10 +203,10 @@ function backgroundsOf(
     }
   }
   commit()
-  return boxes
+  return backgrounds
 }
 
-function itemsOf(
+function contentOf(
   line: Line,
   alignOffset: number,
   baseline: number,
@@ -236,7 +236,7 @@ function itemsOf(
     )
 }
 
-function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
+function tryLayout(input: LayoutInput, sizePx: number): Layout | null {
   const { paragraphs, cap } = measure(input, sizePx)
   const wrapped = paragraphs.map((tokens) => wrap(tokens, input.boxWidth))
   const lineStep = sizePx * input.lineHeight
@@ -245,28 +245,28 @@ function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
   const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * input.paragraphGap
   if (blockHeight > input.boxHeight && sizePx > input.minSizePx) return null
 
-  const boxes: BackgroundBox[] = []
-  const items: (PlacedText | PlacedImage)[] = []
+  const backgrounds: BackgroundBox[] = []
+  const content: (PlacedText | PlacedImage)[] = []
   let y = input.valign === "center" ? Math.max(0, (input.boxHeight - blockHeight) / 2) : 0
 
   for (const lines of wrapped) {
     for (const line of lines) {
       const alignOffset = input.align === "center" ? (input.boxWidth - line.width) / 2 : 0
       const baseline = y + cap
-      boxes.push(...backgroundsOf(line, alignOffset, baseline, cap, input.toPx))
-      items.push(...itemsOf(line, alignOffset, baseline, cap, sizePx))
+      backgrounds.push(...backgroundsOf(line, alignOffset, baseline, cap, input.toPx))
+      content.push(...contentOf(line, alignOffset, baseline, cap, sizePx))
       y += lineStep
     }
     y += input.paragraphGap
   }
 
-  return { boxes, items, sizePx }
+  return { backgrounds, content, sizePx }
 }
 
 export function layout(input: LayoutInput): Layout {
   for (let size = input.baseSizePx; size > input.minSizePx; size -= SHRINK_STEP_PX) {
-    const fitted = layoutAt(input, size)
+    const fitted = tryLayout(input, size)
     if (fitted) return fitted
   }
-  return layoutAt(input, input.minSizePx)!
+  return tryLayout(input, input.minSizePx)!
 }

@@ -126,7 +126,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     paragraphGap: env.toPx(style.paragraphGap),
     align: style.align ?? "left",
     valign: style.valign ?? "top",
-    resolve: (name) => env.presentation.styles[name] ?? {},
+    resolveStyle: (name) => env.presentation.styles[name] ?? {},
     resolveAbbr: (id) => env.presentation.abbreviations[id],
     measurer: env.measurer,
     toPx: env.toPx,
@@ -135,8 +135,8 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
   const originX = isBlock || style.align !== "center" ? env.toPx(style.box?.x) : 0
   const originY = env.toPx(style.box?.y)
 
-  for (const box of laidOut.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
-  for (const item of laidOut.items) drawItem(ctx, item, originX, originY, env.images)
+  for (const box of laidOut.backgrounds) drawBackground(ctx, box, originX, originY, env.toPx)
+  for (const item of laidOut.content) drawItem(ctx, item, originX, originY, env.images)
 }
 
 function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
