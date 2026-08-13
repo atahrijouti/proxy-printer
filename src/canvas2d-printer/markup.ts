@@ -1,16 +1,16 @@
-export interface TextRun {
-  kind: "text"
+export interface TextNode {
+  type: "text"
   text: string
   styles: string[]
 }
 
-export interface AbbrRun {
-  kind: "abbr"
+export interface AbbrNode {
+  type: "abbr"
   id: string
   styles: string[]
 }
 
-export type Run = TextRun | AbbrRun
+export type MarkupNode = TextNode | AbbrNode
 
 function matchingBrace(text: string, open: number): number {
   let depth = 0
@@ -26,13 +26,13 @@ function matchingBrace(text: string, open: number): number {
   return -1
 }
 
-export function parseMarkup(input: string): Run[] {
-  const runs: Run[] = []
+export function parseMarkup(input: string): MarkupNode[] {
+  const nodes: MarkupNode[] = []
 
   const walk = (text: string, active: string[]): void => {
     let buf = ""
     const flush = () => {
-      if (buf) runs.push({ kind: "text", text: buf, styles: [...active] })
+      if (buf) nodes.push({ type: "text", text: buf, styles: [...active] })
       buf = ""
     }
 
@@ -65,7 +65,7 @@ export function parseMarkup(input: string): Run[] {
         }
         if (fn === "abbr") {
           flush()
-          runs.push({ kind: "abbr", id: rest.trim(), styles: [...active] })
+          nodes.push({ type: "abbr", id: rest.trim(), styles: [...active] })
           i = close
           continue
         }
@@ -78,5 +78,5 @@ export function parseMarkup(input: string): Run[] {
   }
 
   walk(input, [])
-  return runs
+  return nodes
 }

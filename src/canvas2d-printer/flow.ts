@@ -1,34 +1,36 @@
-import type { Background, Props } from "./model"
+import type { Background, TextStyle } from "./types"
 import { parseMarkup } from "./markup"
 
+const SHRINK_STEP_PX = 1
+
+export type ToPx = (len: string | number | undefined, emPx?: number) => number
+
 export interface Measurer {
-  use(props: Props, sizePx: number): void
-  width(text: string): number
+  setFont(style: TextStyle, sizePx: number): void
+  measureWidth(text: string): number
   readonly capHeight: number
   readonly ascent: number
   readonly descent: number
   imageAspect(src: string): number
 }
 
-export type ToPx = (len: string | number | undefined, emPx?: number) => number
-
 export interface PlacedText {
-  kind: "text"
+  type: "text"
   x: number
   baseline: number
   text: string
-  props: Props
+  style: TextStyle
   sizePx: number
 }
 export interface PlacedImage {
-  kind: "image"
+  type: "image"
   x: number
   y: number
   w: number
   h: number
   src: string
 }
-export interface RunBox {
+export interface BackgroundBox {
   x: number
   y: number
   w: number
@@ -36,14 +38,14 @@ export interface RunBox {
   background: Background
 }
 export interface Layout {
-  boxes: RunBox[]
+  boxes: BackgroundBox[]
   items: (PlacedText | PlacedImage)[]
   sizePx: number
 }
 
 export interface LayoutInput {
   paragraphs: string[]
-  base: Props
+  base: TextStyle
   baseSizePx: number
   minSizePx: number
   boxWidth: number
@@ -52,21 +54,21 @@ export interface LayoutInput {
   paragraphGap: number
   align: "left" | "center"
   valign: "top" | "center"
-  resolve: (name: string) => Props
+  resolve: (name: string) => TextStyle
   resolveAbbr: (id: string) => string
   measurer: Measurer
   toPx: ToPx
 }
 
 interface Token {
-  runId: number
+  nodeId: number
   isSpace: boolean
   text?: string
   imageSrc?: string
   width: number
   marginBefore: number
   marginAfter: number
-  props: Props
+  style: TextStyle
   background?: Background
 }
 
@@ -76,51 +78,54 @@ interface Line {
   width: number
 }
 
-const mergeStack = (base: Props, names: string[], resolve: (n: string) => Props): Props =>
-  names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), base)
+const mergeStyles = (
+  base: TextStyle,
+  names: string[],
+  resolve: (n: string) => TextStyle,
+): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), base)
 
 function measure(input: LayoutInput, sizePx: number) {
   const { measurer, base, toPx, resolve, resolveAbbr } = input
-  measurer.use(base, sizePx)
+  measurer.setFont(base, sizePx)
   const cap = measurer.capHeight
 
-  let runId = 0
+  let nodeId = 0
   const paragraphs = input.paragraphs.map((markup) => {
     const tokens: Token[] = []
-    for (const run of parseMarkup(markup)) {
-      const props = mergeStack(base, run.styles, resolve)
-      const marginBefore = toPx(props.margin?.before, sizePx)
-      const marginAfter = toPx(props.margin?.after, sizePx)
-      const id = runId++
-      measurer.use(props, sizePx)
+    for (const node of parseMarkup(markup)) {
+      const style = mergeStyles(base, node.styles, resolve)
+      const marginBefore = toPx(style.margin?.before, sizePx)
+      const marginAfter = toPx(style.margin?.after, sizePx)
+      const id = nodeId++
+      measurer.setFont(style, sizePx)
 
-      if (run.kind === "abbr") {
-        const src = resolveAbbr(run.id)
+      if (node.type === "abbr") {
+        const src = resolveAbbr(node.id)
         tokens.push({
-          runId: id,
+          nodeId: id,
           isSpace: false,
           imageSrc: src,
           width: cap * measurer.imageAspect(src),
           marginBefore,
           marginAfter,
-          props,
-          background: props.background,
+          style,
+          background: style.background,
         })
         continue
       }
 
-      const text = props.uppercase ? run.text.toUpperCase() : run.text
+      const text = style.uppercase ? node.text.toUpperCase() : node.text
       const parts = text.split(/(\s+)/).filter((part) => part !== "")
       parts.forEach((part, index) => {
         tokens.push({
-          runId: id,
+          nodeId: id,
           isSpace: /^\s+$/.test(part),
           text: part,
-          width: measurer.width(part),
+          width: measurer.measureWidth(part),
           marginBefore: index === 0 ? marginBefore : 0,
           marginAfter: index === parts.length - 1 ? marginAfter : 0,
-          props,
-          background: props.background,
+          style,
+          background: style.background,
         })
       })
     }
@@ -162,14 +167,17 @@ function backgroundsOf(
   baseline: number,
   cap: number,
   toPx: ToPx,
-): RunBox[] {
-  const boxes: RunBox[] = []
-  let segment: { runId: number; start: number; end: number; background: Background } | null = null
+): BackgroundBox[] {
+  const boxes: BackgroundBox[] = []
+  let segment: { nodeId: number; start: number; end: number; background: Background } | null = null
 
   const commit = () => {
     if (!segment) return
-    const o = segment.background.outset ?? {}
-    const [top, right, bottom, left] = [toPx(o.top), toPx(o.right), toPx(o.bottom), toPx(o.left)]
+    const outset = segment.background.outset ?? {}
+    const top = toPx(outset.top)
+    const right = toPx(outset.right)
+    const bottom = toPx(outset.bottom)
+    const left = toPx(outset.left)
     boxes.push({
       x: segment.start - left,
       y: baseline - cap - top,
@@ -183,11 +191,11 @@ function backgroundsOf(
   for (const token of line.tokens) {
     const start = alignOffset + token.offset
     if (!token.background) commit()
-    else if (segment && segment.runId === token.runId) segment.end = start + token.width
+    else if (segment && segment.nodeId === token.nodeId) segment.end = start + token.width
     else {
       commit()
       segment = {
-        runId: token.runId,
+        nodeId: token.nodeId,
         start,
         end: start + token.width,
         background: token.background,
@@ -210,7 +218,7 @@ function itemsOf(
     .map((token) =>
       token.imageSrc
         ? {
-            kind: "image",
+            type: "image",
             x: alignOffset + token.offset,
             y: baseline - cap,
             w: token.width,
@@ -218,11 +226,11 @@ function itemsOf(
             src: token.imageSrc,
           }
         : {
-            kind: "text",
+            type: "text",
             x: alignOffset + token.offset,
             baseline,
             text: token.text!,
-            props: token.props,
+            style: token.style,
             sizePx,
           },
     )
@@ -237,7 +245,7 @@ function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
   const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * input.paragraphGap
   if (blockHeight > input.boxHeight && sizePx > input.minSizePx) return null
 
-  const boxes: RunBox[] = []
+  const boxes: BackgroundBox[] = []
   const items: (PlacedText | PlacedImage)[] = []
   let y = input.valign === "center" ? Math.max(0, (input.boxHeight - blockHeight) / 2) : 0
 
@@ -256,7 +264,7 @@ function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
 }
 
 export function layout(input: LayoutInput): Layout {
-  for (let size = input.baseSizePx; size > input.minSizePx; size -= 1) {
+  for (let size = input.baseSizePx; size > input.minSizePx; size -= SHRINK_STEP_PX) {
     const result = layoutAt(input, size)
     if (result) return result
   }

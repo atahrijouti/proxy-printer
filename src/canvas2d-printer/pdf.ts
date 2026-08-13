@@ -1,11 +1,10 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js"
+import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 
 const MM_TO_PT = 72 / 25.4
 const COLUMNS = 3
 const ROWS = 3
 const PER_PAGE = COLUMNS * ROWS
-const CARD_WIDTH_MM = 63
-const CARD_HEIGHT_MM = 88
 const MARGIN_X_MM = 10.5
 const MARGIN_Y_MM = 16.5
 const EPOCH = new Date(0)

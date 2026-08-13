@@ -3,15 +3,17 @@ import { render } from "solid-js/web"
 import { createEffect, createSignal, For, Show, type Component } from "solid-js"
 
 import "./index.css"
+import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
-import { CARD_HEIGHT_MM, CARD_WIDTH_MM, CanvasMeasurer, drawCard } from "./render"
+import { CanvasMeasurer, drawCard } from "./render"
 import { loadFonts, loadImages } from "./resources"
 import type { Card, DB } from "./types"
 
 const DEFAULT_URL = "http://localhost:8787/db-canvas2d-print.json"
 const SCALE = 8
 const PDF_SCALE = 12
+const REVOKE_DELAY_MS = 10_000
 
 interface Loaded {
   db: DB
@@ -83,7 +85,7 @@ const App: Component = () => {
     anchor.href = href
     anchor.download = "proxies.pdf"
     anchor.click()
-    setTimeout(() => URL.revokeObjectURL(href), 10_000)
+    setTimeout(() => URL.revokeObjectURL(href), REVOKE_DELAY_MS)
   }
 
   return (

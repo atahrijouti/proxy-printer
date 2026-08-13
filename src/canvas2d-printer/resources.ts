@@ -1,15 +1,11 @@
-import type { FontFace as DBFontFace } from "./types"
+import type { FontSpec } from "./types"
 
-export interface Resources {
-  images: Map<string, HTMLImageElement>
-}
-
-export async function loadFonts(fonts: DBFontFace[]): Promise<void> {
+export async function loadFonts(fonts: FontSpec[]): Promise<void> {
   await Promise.all(
     fonts.map(async (font) => {
-      const face = new FontFace(font.family, `url(${JSON.stringify(font.src)})`, {
-        weight: font.weight ? String(font.weight) : undefined,
-        style: font.style,
+      const face = new FontFace(font.fontFamily, `url(${JSON.stringify(font.src)})`, {
+        weight: font.fontWeight ? String(font.fontWeight) : undefined,
+        style: font.fontStyle ?? "normal",
       })
       await face.load()
       document.fonts.add(face)

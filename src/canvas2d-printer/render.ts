@@ -1,18 +1,29 @@
-import { layout, type Measurer, type PlacedImage, type PlacedText, type RunBox } from "./flow"
-import type { Overlay, Props } from "./model"
+import {
+  layout,
+  type Measurer,
+  type PlacedImage,
+  type PlacedText,
+  type BackgroundBox,
+  type ToPx,
+} from "./flow"
+import type { Card, Overlay, Presentation, TextStyle } from "./types"
+import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import { lengthToPx } from "./units"
-import type { Card, Presentation } from "./types"
 
-export const CARD_WIDTH_MM = 63
-export const CARD_HEIGHT_MM = 88
-export const CARD_RADIUS_MM = 2
+// a box edge for line-mode text: no wrapping, no height limit
+const UNBOUNDED = Infinity
+// shrink-to-fit will not go below this fraction of the style's base size
+const MIN_SIZE_RATIO = 0.6
+// only used when the browser reports no font metrics; fractions of the font size
+const FALLBACK_CAP_RATIO = 0.7
+const FALLBACK_ASCENT_RATIO = 0.9
+const FALLBACK_DESCENT_RATIO = 0.25
 
 type Ctx = CanvasRenderingContext2D
 type Images = Map<string, HTMLImageElement>
-type ToPx = (len: string | number | undefined, emPx?: number) => number
 
-const fontString = (props: Props, sizePx: number) =>
-  `${props.style === "italic" ? "italic " : ""}${props.weight ?? 400} ${sizePx}px ${JSON.stringify(props.font ?? "sans-serif")}`
+const fontString = (style: TextStyle, sizePx: number) =>
+  `${style.fontStyle === "italic" ? "italic " : ""}${style.fontWeight ?? 400} ${sizePx}px ${JSON.stringify(style.fontFamily ?? "sans-serif")}`
 
 export class CanvasMeasurer implements Measurer {
   private ctx: Ctx
@@ -24,59 +35,21 @@ export class CanvasMeasurer implements Measurer {
     this.images = images
     this.ctx = document.createElement("canvas").getContext("2d")!
   }
-  use(props: Props, sizePx: number) {
-    this.ctx.font = fontString(props, sizePx)
+  setFont(style: TextStyle, sizePx: number) {
+    this.ctx.font = fontString(style, sizePx)
     const capitals = this.ctx.measureText("H")
     const line = this.ctx.measureText("Hg")
-    this.capHeight = capitals.actualBoundingBoxAscent || sizePx * 0.7
-    this.ascent = line.fontBoundingBoxAscent || sizePx * 0.9
-    this.descent = line.fontBoundingBoxDescent || sizePx * 0.25
+    this.capHeight = capitals.actualBoundingBoxAscent || sizePx * FALLBACK_CAP_RATIO
+    this.ascent = line.fontBoundingBoxAscent || sizePx * FALLBACK_ASCENT_RATIO
+    this.descent = line.fontBoundingBoxDescent || sizePx * FALLBACK_DESCENT_RATIO
   }
-  width(text: string) {
+  measureWidth(text: string) {
     return this.ctx.measureText(text).width
   }
   imageAspect(src: string) {
     const image = this.images.get(src)
     return image ? image.naturalWidth / image.naturalHeight : 1
   }
-}
-
-function drawBackground(ctx: Ctx, box: RunBox, originX: number, originY: number, toPx: ToPx) {
-  const corners = box.background.corners ?? {}
-  const radius = (len?: string) => toPx(len)
-  ctx.beginPath()
-  ctx.roundRect(originX + box.x, originY + box.y, box.w, box.h, [
-    radius(corners.topLeft),
-    radius(corners.topRight),
-    radius(corners.bottomRight),
-    radius(corners.bottomLeft),
-  ])
-  ctx.fillStyle = box.background.fill
-  ctx.fill()
-}
-
-type ItemDrawer = (
-  ctx: Ctx,
-  item: PlacedText | PlacedImage,
-  originX: number,
-  originY: number,
-  images: Images,
-) => void
-
-const drawItem: Record<(PlacedText | PlacedImage)["kind"], ItemDrawer> = {
-  text: (ctx, item, originX, originY) => {
-    if (item.kind !== "text") return
-    ctx.font = fontString(item.props, item.sizePx)
-    ctx.fillStyle = item.props.color ?? "#000000"
-    ctx.globalAlpha = item.props.opacity ?? 1
-    ctx.fillText(item.text, originX + item.x, originY + item.baseline)
-    ctx.globalAlpha = 1
-  },
-  image: (ctx, item, originX, originY, images) => {
-    if (item.kind !== "image") return
-    const image = images.get(item.src)
-    if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.w, item.h)
-  },
 }
 
 interface DrawEnv {
@@ -87,26 +60,68 @@ interface DrawEnv {
   toPx: ToPx
 }
 
+function drawBackground(
+  ctx: Ctx,
+  box: BackgroundBox,
+  originX: number,
+  originY: number,
+  toPx: ToPx,
+) {
+  const corners = box.background.corners ?? {}
+  ctx.beginPath()
+  ctx.roundRect(originX + box.x, originY + box.y, box.w, box.h, [
+    toPx(corners.topLeft),
+    toPx(corners.topRight),
+    toPx(corners.bottomRight),
+    toPx(corners.bottomLeft),
+  ])
+  ctx.fillStyle = box.background.fill
+  ctx.fill()
+}
+
+function drawItem(
+  ctx: Ctx,
+  item: PlacedText | PlacedImage,
+  originX: number,
+  originY: number,
+  images: Images,
+) {
+  switch (item.type) {
+    case "text":
+      ctx.font = fontString(item.style, item.sizePx)
+      ctx.fillStyle = item.style.color ?? "#000000"
+      ctx.globalAlpha = item.style.opacity ?? 1
+      ctx.fillText(item.text, originX + item.x, originY + item.baseline)
+      ctx.globalAlpha = 1
+      return
+    case "image": {
+      const image = images.get(item.src)
+      if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.w, item.h)
+      return
+    }
+  }
+}
+
 function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
   const style = env.pres.styles[overlay.style]
   if (!style) throw new Error(`unknown style: "${overlay.style}"`)
   const paragraphs = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
     (p) => p.length > 0,
   )
-  const block = style.kind === "block"
-  const baseSizePx = env.toPx(style.size)
+  const block = style.mode === "block"
+  const baseSizePx = env.toPx(style.fontSize)
 
   const result = layout({
     paragraphs,
     base: style,
     baseSizePx,
-    minSizePx: baseSizePx * 0.6,
+    minSizePx: baseSizePx * MIN_SIZE_RATIO,
     boxWidth: block
       ? env.toPx(style.box?.w)
       : style.align === "center"
         ? CARD_WIDTH_MM * env.scale
-        : 1e6,
-    boxHeight: block ? env.toPx(style.box?.h) : 1e6,
+        : UNBOUNDED,
+    boxHeight: block ? env.toPx(style.box?.h) : UNBOUNDED,
     lineHeight: style.lineHeight ?? 1,
     paragraphGap: env.toPx(style.paragraphGap),
     align: style.align ?? "left",
@@ -117,27 +132,26 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     toPx: env.toPx,
   })
 
-  const originX = block
-    ? env.toPx(style.box?.x)
-    : style.align === "center"
-      ? 0
-      : env.toPx(style.box?.x)
+  const originX = block || style.align !== "center" ? env.toPx(style.box?.x) : 0
   const originY = env.toPx(style.box?.y)
 
   for (const box of result.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
-  for (const item of result.items) drawItem[item.kind](ctx, item, originX, originY, env.images)
+  for (const item of result.items) drawItem(ctx, item, originX, originY, env.images)
 }
 
-const drawOverlay: Record<Overlay["type"], (ctx: Ctx, overlay: Overlay, env: DrawEnv) => void> = {
-  image: (ctx, overlay, env) => {
-    if (overlay.type !== "image") return
-    const image = env.images.get(overlay.src)
-    if (image) ctx.drawImage(image, 0, 0, CARD_WIDTH_MM * env.scale, CARD_HEIGHT_MM * env.scale)
-  },
-  shape: () => {},
-  text: (ctx, overlay, env) => {
-    if (overlay.type === "text") drawTextOverlay(ctx, overlay, env)
-  },
+function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
+  switch (overlay.type) {
+    case "image": {
+      const image = env.images.get(overlay.src)
+      if (image) ctx.drawImage(image, 0, 0, CARD_WIDTH_MM * env.scale, CARD_HEIGHT_MM * env.scale)
+      return
+    }
+    case "shape":
+      return
+    case "text":
+      drawTextOverlay(ctx, overlay, env)
+      return
+  }
 }
 
 export function drawCard(
@@ -164,6 +178,6 @@ export function drawCard(
   ctx.clip()
   const base = images.get(card.image)
   if (base) ctx.drawImage(base, 0, 0, width, height)
-  for (const overlay of card.overlays ?? []) drawOverlay[overlay.type](ctx, overlay, env)
+  for (const overlay of card.overlays ?? []) drawOverlay(ctx, overlay, env)
   ctx.restore()
 }
