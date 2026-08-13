@@ -1,53 +1,49 @@
-// Card content model — shared across renderers; each renderer maps it to its own primitives.
+// Card content model — shared across renderers; each maps it to its own primitives.
 //
-// Flow rules:
+// A text overlay's `content` is {t <style> …} / {abbr <name>} markup (string, or string[] of
+// paragraphs) — the same grammar every printer uses. `parseMarkup` compiles it to runs; a run's
+// effective style is the base style merged with its style-name stack, resolved against the DB's
+// `styles` registry. `{abbr name}` resolves against the `abbreviations` registry to an image src.
+//
+// Flow rules (how runs lay out — the self-laying-out backends share `flow.ts`):
 //  1. Additive sweep: cursor += margin.before; place content; cursor += width; cursor += margin.after.
-//  2. `background` draws behind the content bbox expanded by `outset` per side — never advances the cursor.
-//     Author owns clearance (the follower's margin), not the engine.
-//  3. An `image` inline's box = cap-height of its resolved font, bottom on the baseline (sits like a capital).
-//  4. A line's ascent/descent = max over its inlines (mixed sizes flow correctly).
-//  5. Wrap between inlines and at spaces inside a `text` run; a backgrounded run never splits;
-//     a leading margin is dropped at a line break.
-//  6. Shrink-to-fit: if the block overflows its box height, reduce the base size until it fits
-//     (so there are no per-card size overrides — the fitter finds the size).
+//  2. `background` draws behind the run's box, expanded by `outset` per side — never advances the
+//     cursor. Spacing between runs is `margin` (a style property), not the background.
+//  3. An {abbr} image is sized to the cap-height of its font, sat on the baseline (like a capital).
+//  4. A line's ascent/descent = max over its runs.
+//  5. Wrap between runs and at spaces inside a run; a backgrounded run never splits; a leading
+//     margin is dropped at a line break.
+//  6. Shrink-to-fit: if the block overflows its box height, reduce the base size until it fits.
 
-export type Length = string // "3.5mm" | "0.8em"
+export type Length = string // "3.5mm" | "0.8em" | "6px"
 export type Ref = string // name of a style in the presentation registry
 
-// ── placement ──
-export type Overlay =
-  | { type: "image"; src: string }
-  | { type: "shape"; style: Ref }
-  | { type: "text"; style: Ref; content: Paragraph[] }
-
-// ── inline flow ──
-export type Paragraph = Inline[]
-
-export type Inline =
-  | { kind: "text"; value: string; style?: Ref | Props; margin?: Margin }
-  | { kind: "image"; src: string; style?: Ref | Props; margin?: Margin }
+export interface Background {
+  fill: string
+  outset?: { top?: Length; right?: Length; bottom?: Length; left?: Length }
+  corners?: { topLeft?: Length; topRight?: Length; bottomRight?: Length; bottomLeft?: Length }
+}
 
 export interface Margin {
   before?: Length
   after?: Length
 }
 
-// core property set every renderer honors
+// core text properties every renderer honours (a named style is Props + positioning)
 export interface Props {
   font?: string
   weight?: number
-  italic?: boolean
+  style?: "normal" | "italic"
   size?: Length
   color?: string
-  letterSpacing?: Length
   opacity?: number
+  letterSpacing?: Length
   uppercase?: boolean
   background?: Background
+  margin?: Margin
 }
 
-// visual-only run decoration (zero flow effect)
-export interface Background {
-  fill: string
-  outset?: { top?: Length; right?: Length; bottom?: Length; left?: Length }
-  corners?: { topLeft?: Length; topRight?: Length; bottomRight?: Length; bottomLeft?: Length }
-}
+export type Overlay =
+  | { type: "image"; src: string }
+  | { type: "shape"; style: Ref }
+  | { type: "text"; style: Ref; content: string | string[] }
