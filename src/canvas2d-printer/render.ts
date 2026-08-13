@@ -9,9 +9,10 @@ export const CARD_RADIUS_MM = 2
 
 type Ctx = CanvasRenderingContext2D
 type Images = Map<string, HTMLImageElement>
+type ToPx = (len: string | number | undefined, emPx?: number) => number
 
 const fontString = (props: Props, sizePx: number) =>
-  `${props.style === "italic" ? "italic " : ""}${props.weight ?? 400} ${sizePx}px ${JSON.stringify(props.font ?? "Bogle")}`
+  `${props.style === "italic" ? "italic " : ""}${props.weight ?? 400} ${sizePx}px ${JSON.stringify(props.font ?? "sans-serif")}`
 
 export class CanvasMeasurer implements Measurer {
   private ctx: Ctx
@@ -25,9 +26,9 @@ export class CanvasMeasurer implements Measurer {
   }
   use(props: Props, sizePx: number) {
     this.ctx.font = fontString(props, sizePx)
-    const cap = this.ctx.measureText("H")
+    const capitals = this.ctx.measureText("H")
     const line = this.ctx.measureText("Hg")
-    this.capHeight = cap.actualBoundingBoxAscent || sizePx * 0.7
+    this.capHeight = capitals.actualBoundingBoxAscent || sizePx * 0.7
     this.ascent = line.fontBoundingBoxAscent || sizePx * 0.9
     this.descent = line.fontBoundingBoxDescent || sizePx * 0.25
   }
@@ -40,47 +41,53 @@ export class CanvasMeasurer implements Measurer {
   }
 }
 
-interface DrawEnv {
-  pres: Presentation
-  images: Images
-  measurer: CanvasMeasurer
-  scale: number
-  toPx: (len: string | number | undefined, emPx?: number) => number
-}
-
-const drawText = (ctx: Ctx, it: PlacedText, ox: number, oy: number) => {
-  ctx.font = fontString(it.props, it.sizePx)
-  ctx.fillStyle = it.props.color ?? "#000000"
-  ctx.globalAlpha = it.props.opacity ?? 1
-  ctx.fillText(it.text, ox + it.x, oy + it.baseline)
-  ctx.globalAlpha = 1
-}
-
-const drawImage = (ctx: Ctx, it: PlacedImage, ox: number, oy: number, images: Images) => {
-  const image = images.get(it.src)
-  if (image) ctx.drawImage(image, ox + it.x, oy + it.y, it.w, it.h)
-}
-
-const itemRegistry: {
-  text: (ctx: Ctx, it: PlacedText, ox: number, oy: number, images: Images) => void
-  image: (ctx: Ctx, it: PlacedImage, ox: number, oy: number, images: Images) => void
-} = { text: drawText, image: drawImage }
-
-function drawBackground(ctx: Ctx, box: RunBox, ox: number, oy: number, env: DrawEnv) {
-  const c = box.background.corners ?? {}
-  const r = (l?: string) => env.toPx(l)
+function drawBackground(ctx: Ctx, box: RunBox, originX: number, originY: number, toPx: ToPx) {
+  const corners = box.background.corners ?? {}
+  const radius = (len?: string) => toPx(len)
   ctx.beginPath()
-  ctx.roundRect(ox + box.x, oy + box.y, box.w, box.h, [
-    r(c.topLeft),
-    r(c.topRight),
-    r(c.bottomRight),
-    r(c.bottomLeft),
+  ctx.roundRect(originX + box.x, originY + box.y, box.w, box.h, [
+    radius(corners.topLeft),
+    radius(corners.topRight),
+    radius(corners.bottomRight),
+    radius(corners.bottomLeft),
   ])
   ctx.fillStyle = box.background.fill
   ctx.fill()
 }
 
-function layoutText(overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
+type ItemDrawer = (
+  ctx: Ctx,
+  item: PlacedText | PlacedImage,
+  originX: number,
+  originY: number,
+  images: Images,
+) => void
+
+const drawItem: Record<(PlacedText | PlacedImage)["kind"], ItemDrawer> = {
+  text: (ctx, item, originX, originY) => {
+    if (item.kind !== "text") return
+    ctx.font = fontString(item.props, item.sizePx)
+    ctx.fillStyle = item.props.color ?? "#000000"
+    ctx.globalAlpha = item.props.opacity ?? 1
+    ctx.fillText(item.text, originX + item.x, originY + item.baseline)
+    ctx.globalAlpha = 1
+  },
+  image: (ctx, item, originX, originY, images) => {
+    if (item.kind !== "image") return
+    const image = images.get(item.src)
+    if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.w, item.h)
+  },
+}
+
+interface DrawEnv {
+  pres: Presentation
+  images: Images
+  measurer: CanvasMeasurer
+  scale: number
+  toPx: ToPx
+}
+
+function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
   const style = env.pres.styles[overlay.style]
   if (!style) throw new Error(`unknown style: "${overlay.style}"`)
   const paragraphs = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
@@ -88,13 +95,14 @@ function layoutText(overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
   )
   const block = style.kind === "block"
   const baseSizePx = env.toPx(style.size)
+
   env.measurer.use(style, baseSizePx)
   const cap = env.measurer.capHeight
   const ascent = env.measurer.ascent
 
   const result = layout({
     paragraphs,
-    base: style as Props,
+    base: style,
     baseSizePx,
     minSizePx: baseSizePx * 0.6,
     boxWidth: block
@@ -107,18 +115,24 @@ function layoutText(overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
     paragraphGap: env.toPx(style.paragraphGap),
     align: style.align ?? "left",
     valign: style.valign ?? "top",
-    resolve: (name) => (env.pres.styles[name] ?? {}) as Props,
+    resolve: (name) => env.pres.styles[name] ?? {},
     resolveAbbr: (id) => env.pres.abbreviations[id],
     measurer: env.measurer,
     toPx: env.toPx,
   })
 
-  const ox = block ? env.toPx(style.box?.x) : style.align === "center" ? 0 : env.toPx(style.box?.x)
-  const oy = block ? env.toPx(style.box?.y) : env.toPx(style.box?.y) - (ascent - cap)
-  return { result, ox, oy }
+  const originX = block
+    ? env.toPx(style.box?.x)
+    : style.align === "center"
+      ? 0
+      : env.toPx(style.box?.x)
+  const originY = block ? env.toPx(style.box?.y) : env.toPx(style.box?.y) - (ascent - cap)
+
+  for (const box of result.boxes) drawBackground(ctx, box, originX, originY, env.toPx)
+  for (const item of result.items) drawItem[item.kind](ctx, item, originX, originY, env.images)
 }
 
-const overlayRegistry: Record<string, (ctx: Ctx, overlay: Overlay, env: DrawEnv) => void> = {
+const drawOverlay: Record<Overlay["type"], (ctx: Ctx, overlay: Overlay, env: DrawEnv) => void> = {
   image: (ctx, overlay, env) => {
     if (overlay.type !== "image") return
     const image = env.images.get(overlay.src)
@@ -126,10 +140,7 @@ const overlayRegistry: Record<string, (ctx: Ctx, overlay: Overlay, env: DrawEnv)
   },
   shape: () => {},
   text: (ctx, overlay, env) => {
-    if (overlay.type !== "text") return
-    const { result, ox, oy } = layoutText(overlay, env)
-    for (const box of result.boxes) drawBackground(ctx, box, ox, oy, env)
-    for (const it of result.items) itemRegistry[it.kind](ctx, it as never, ox, oy, env.images)
+    if (overlay.type === "text") drawTextOverlay(ctx, overlay, env)
   },
 }
 
@@ -148,14 +159,15 @@ export function drawCard(
     scale,
     toPx: (len, emPx = 0) => lengthToPx(len, scale, emPx),
   }
-  const w = CARD_WIDTH_MM * scale
-  const h = CARD_HEIGHT_MM * scale
+  const width = CARD_WIDTH_MM * scale
+  const height = CARD_HEIGHT_MM * scale
+
   ctx.save()
   ctx.beginPath()
-  ctx.roundRect(0, 0, w, h, CARD_RADIUS_MM * scale)
+  ctx.roundRect(0, 0, width, height, CARD_RADIUS_MM * scale)
   ctx.clip()
   const base = images.get(card.image)
-  if (base) ctx.drawImage(base, 0, 0, w, h)
-  for (const overlay of card.overlays ?? []) overlayRegistry[overlay.type](ctx, overlay, env)
+  if (base) ctx.drawImage(base, 0, 0, width, height)
+  for (const overlay of card.overlays ?? []) drawOverlay[overlay.type](ctx, overlay, env)
   ctx.restore()
 }

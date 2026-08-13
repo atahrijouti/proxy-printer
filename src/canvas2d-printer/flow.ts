@@ -1,14 +1,13 @@
 import type { Background, Props } from "./model"
 import { parseMarkup } from "./markup"
 
-// A backend implements this so the engine can measure without knowing the renderer.
 export interface Measurer {
-  use(props: Props, sizePx: number): void // configure measuring state for a run
+  use(props: Props, sizePx: number): void
   width(text: string): number
-  readonly capHeight: number // valid after use()
+  readonly capHeight: number
   readonly ascent: number
   readonly descent: number
-  imageAspect(src: string): number // decoded width / height
+  imageAspect(src: string): number
 }
 
 export type ToPx = (len: string | number | undefined, emPx?: number) => number
@@ -43,7 +42,7 @@ export interface Layout {
 }
 
 export interface LayoutInput {
-  paragraphs: string[] // {t}/{abbr} markup, one per paragraph
+  paragraphs: string[]
   base: Props
   baseSizePx: number
   minSizePx: number
@@ -60,165 +59,199 @@ export interface LayoutInput {
 }
 
 interface Token {
-  run: number
-  space: boolean
+  runId: number
+  isSpace: boolean
   text?: string
-  src?: string
-  w: number
+  imageSrc?: string
+  width: number
   marginBefore: number
   marginAfter: number
   props: Props
   background?: Background
 }
 
+type PlacedToken = Token & { offset: number }
+interface Line {
+  tokens: PlacedToken[]
+  width: number
+}
+
 const mergeStack = (base: Props, names: string[], resolve: (n: string) => Props): Props =>
   names.reduce((acc, name) => ({ ...acc, ...resolve(name) }), base)
 
-function tokenize(input: LayoutInput, sizePx: number) {
-  const { measurer, base } = input
+function measure(input: LayoutInput, sizePx: number) {
+  const { measurer, base, toPx, resolve, resolveAbbr } = input
   measurer.use(base, sizePx)
   const cap = measurer.capHeight
   const ascent = measurer.ascent
-  const descent = measurer.descent
 
-  let run = 0
+  let runId = 0
   const paragraphs = input.paragraphs.map((markup) => {
     const tokens: Token[] = []
-    for (const r of parseMarkup(markup)) {
-      const props = mergeStack(base, r.styles, input.resolve)
-      const marginBefore = input.toPx(props.margin?.before, sizePx)
-      const marginAfter = input.toPx(props.margin?.after, sizePx)
-      const background = props.background
-      const id = run++
+    for (const run of parseMarkup(markup)) {
+      const props = mergeStack(base, run.styles, resolve)
+      const marginBefore = toPx(props.margin?.before, sizePx)
+      const marginAfter = toPx(props.margin?.after, sizePx)
+      const id = runId++
       measurer.use(props, sizePx)
 
-      if (r.kind === "abbr") {
-        const src = input.resolveAbbr(r.id)
+      if (run.kind === "abbr") {
+        const src = resolveAbbr(run.id)
         tokens.push({
-          run: id,
-          space: false,
-          src,
-          w: cap * measurer.imageAspect(src),
+          runId: id,
+          isSpace: false,
+          imageSrc: src,
+          width: cap * measurer.imageAspect(src),
           marginBefore,
           marginAfter,
           props,
-          background,
+          background: props.background,
         })
         continue
       }
 
-      const text = props.uppercase ? r.text.toUpperCase() : r.text
-      const parts = text.split(/(\s+)/).filter((p) => p !== "")
-      parts.forEach((part, k) => {
+      const text = props.uppercase ? run.text.toUpperCase() : run.text
+      const parts = text.split(/(\s+)/).filter((part) => part !== "")
+      parts.forEach((part, index) => {
         tokens.push({
-          run: id,
-          space: /^\s+$/.test(part),
+          runId: id,
+          isSpace: /^\s+$/.test(part),
           text: part,
-          w: measurer.width(part),
-          marginBefore: k === 0 ? marginBefore : 0,
-          marginAfter: k === parts.length - 1 ? marginAfter : 0,
+          width: measurer.width(part),
+          marginBefore: index === 0 ? marginBefore : 0,
+          marginAfter: index === parts.length - 1 ? marginAfter : 0,
           props,
-          background,
+          background: props.background,
         })
       })
     }
     return tokens
   })
-  return { paragraphs, cap, ascent, descent }
+  return { paragraphs, cap, ascent }
+}
+
+function wrap(tokens: Token[], maxWidth: number): Line[] {
+  const lines: Line[] = []
+  let current: PlacedToken[] = []
+  let cursor = 0
+
+  const commit = () => {
+    while (current.length && current[current.length - 1].isSpace) {
+      const dropped = current.pop()!
+      cursor -= dropped.marginBefore + dropped.width + dropped.marginAfter
+    }
+    if (current.length) lines.push({ tokens: current, width: cursor })
+    current = []
+    cursor = 0
+  }
+
+  for (const token of tokens) {
+    if (token.isSpace && current.length === 0) continue
+    const margin = current.length === 0 ? 0 : token.marginBefore
+    if (!token.isSpace && current.length && cursor + margin + token.width > maxWidth) commit()
+    cursor += current.length === 0 ? 0 : token.marginBefore
+    current.push({ ...token, offset: cursor })
+    cursor += token.width + token.marginAfter
+  }
+  commit()
+  return lines
+}
+
+function backgroundsOf(
+  line: Line,
+  alignOffset: number,
+  baseline: number,
+  cap: number,
+  toPx: ToPx,
+): RunBox[] {
+  const boxes: RunBox[] = []
+  let segment: { runId: number; start: number; end: number; background: Background } | null = null
+
+  const commit = () => {
+    if (!segment) return
+    const o = segment.background.outset ?? {}
+    const [top, right, bottom, left] = [toPx(o.top), toPx(o.right), toPx(o.bottom), toPx(o.left)]
+    boxes.push({
+      x: segment.start - left,
+      y: baseline - cap - top,
+      w: segment.end - segment.start + left + right,
+      h: cap + top + bottom,
+      background: segment.background,
+    })
+    segment = null
+  }
+
+  for (const token of line.tokens) {
+    const start = alignOffset + token.offset
+    if (!token.background) commit()
+    else if (segment && segment.runId === token.runId) segment.end = start + token.width
+    else {
+      commit()
+      segment = {
+        runId: token.runId,
+        start,
+        end: start + token.width,
+        background: token.background,
+      }
+    }
+  }
+  commit()
+  return boxes
+}
+
+function itemsOf(
+  line: Line,
+  alignOffset: number,
+  baseline: number,
+  cap: number,
+  sizePx: number,
+): (PlacedText | PlacedImage)[] {
+  return line.tokens
+    .filter((token) => !token.isSpace)
+    .map((token) =>
+      token.imageSrc
+        ? {
+            kind: "image",
+            x: alignOffset + token.offset,
+            y: baseline - cap,
+            w: token.width,
+            h: cap,
+            src: token.imageSrc,
+          }
+        : {
+            kind: "text",
+            x: alignOffset + token.offset,
+            baseline,
+            text: token.text!,
+            props: token.props,
+            sizePx,
+          },
+    )
 }
 
 function layoutAt(input: LayoutInput, sizePx: number): Layout | null {
-  const { paragraphs, cap, ascent } = tokenize(input, sizePx)
-  const step = sizePx * input.lineHeight
-  const lines: { tokens: (Token & { x: number })[]; width: number; blank?: boolean }[] = []
+  const { paragraphs, cap, ascent } = measure(input, sizePx)
+  const wrapped = paragraphs.map((tokens) => wrap(tokens, input.boxWidth))
+  const lineStep = sizePx * input.lineHeight
 
-  for (const tokens of paragraphs) {
-    let line: (Token & { x: number })[] = []
-    let x = 0
-    const flush = () => {
-      while (line.length && line[line.length - 1].space) {
-        const last = line.pop()!
-        x -= last.w + last.marginBefore + last.marginAfter
-      }
-      lines.push({ tokens: line, width: x })
-      line = []
-      x = 0
-    }
-    for (const t of tokens) {
-      if (t.space && line.length === 0) continue
-      const lead = line.length === 0 ? 0 : t.marginBefore
-      if (!t.space && line.length > 0 && x + lead + t.w > input.boxWidth) flush()
-      x += line.length === 0 ? 0 : t.marginBefore
-      line.push({ ...t, x })
-      x += t.w + t.marginAfter
-    }
-    flush()
-    lines.push({ tokens: [], width: 0, blank: true })
-  }
-  lines.pop()
-
-  const tops: number[] = []
-  let used = 0
-  for (const l of lines) {
-    tops.push(used)
-    used += l.blank ? input.paragraphGap : step
-  }
-  const blockHeight = lines.length
-    ? tops[tops.length - 1] + (lines[lines.length - 1].blank ? 0 : step)
-    : 0
+  const lineCount = wrapped.reduce((total, lines) => total + lines.length, 0)
+  const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * input.paragraphGap
   if (blockHeight > input.boxHeight && sizePx > input.minSizePx) return null
 
-  const yOffset = input.valign === "center" ? Math.max(0, (input.boxHeight - blockHeight) / 2) : 0
-  const items: (PlacedText | PlacedImage)[] = []
   const boxes: RunBox[] = []
+  const items: (PlacedText | PlacedImage)[] = []
+  let y = input.valign === "center" ? Math.max(0, (input.boxHeight - blockHeight) / 2) : 0
 
-  lines.forEach((l, i) => {
-    if (l.blank) return
-    const shift = input.align === "center" ? (input.boxWidth - l.width) / 2 : 0
-    const baseline = yOffset + tops[i] + ascent
-
-    let seg: { run: number; start: number; end: number; bg: Background } | null = null
-    const flushSeg = () => {
-      if (!seg) return
-      const o = seg.bg.outset ?? {}
-      const left = input.toPx(o.left)
-      const right = input.toPx(o.right)
-      const top = input.toPx(o.top)
-      const bottom = input.toPx(o.bottom)
-      boxes.push({
-        x: seg.start - left,
-        y: baseline - cap - top,
-        w: seg.end - seg.start + left + right,
-        h: cap + top + bottom,
-        background: seg.bg,
-      })
-      seg = null
+  for (const lines of wrapped) {
+    for (const line of lines) {
+      const alignOffset = input.align === "center" ? (input.boxWidth - line.width) / 2 : 0
+      const baseline = y + ascent
+      boxes.push(...backgroundsOf(line, alignOffset, baseline, cap, input.toPx))
+      items.push(...itemsOf(line, alignOffset, baseline, cap, sizePx))
+      y += lineStep
     }
-    for (const t of l.tokens) {
-      if (!t.background) flushSeg()
-      else if (seg && seg.run === t.run) seg.end = shift + t.x + t.w
-      else {
-        flushSeg()
-        seg = { run: t.run, start: shift + t.x, end: shift + t.x + t.w, bg: t.background }
-      }
-    }
-    flushSeg()
-
-    for (const t of l.tokens) {
-      if (t.space) continue
-      if (t.src)
-        items.push({ kind: "image", x: shift + t.x, y: baseline - cap, w: t.w, h: cap, src: t.src })
-      else
-        items.push({
-          kind: "text",
-          x: shift + t.x,
-          baseline,
-          text: t.text!,
-          props: t.props,
-          sizePx,
-        })
-    }
-  })
+    y += input.paragraphGap
+  }
 
   return { boxes, items, sizePx }
 }
