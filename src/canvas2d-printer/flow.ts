@@ -1,12 +1,10 @@
-import type { Background, TextStyle } from "./types"
+import type { ResolvedBackground, ResolvedTextStyle } from "./types"
 import { parseMarkup } from "./markup"
 
 const SHRINK_STEP_PX = 1
 
-export type ToPx = (len: string | number | undefined, emPx?: number) => number
-
 export interface Measurer {
-  setFont(style: TextStyle, sizePx: number): void
+  setFont(style: ResolvedTextStyle, sizePx: number): void
   measureWidth(text: string): number
   readonly capHeight: number
   readonly ascent: number
@@ -19,7 +17,7 @@ export interface PlacedText {
   x: number
   baseline: number
   text: string
-  style: TextStyle
+  style: ResolvedTextStyle
   sizePx: number
 }
 export interface PlacedImage {
@@ -35,7 +33,7 @@ export interface BackgroundBox {
   y: number
   w: number
   h: number
-  background: Background
+  background: ResolvedBackground
 }
 export interface Layout {
   backgrounds: BackgroundBox[]
@@ -45,7 +43,7 @@ export interface Layout {
 
 export interface LayoutInput {
   paragraphs: string[]
-  baseStyle: TextStyle
+  baseStyle: ResolvedTextStyle
   baseSizePx: number
   minSizePx: number
   boxWidth: number
@@ -54,10 +52,9 @@ export interface LayoutInput {
   paragraphGap: number
   align: "left" | "center"
   valign: "top" | "center"
-  resolveStyle: (name: string) => TextStyle
-  resolveAbbr: (id: string) => string
+  styles: Record<string, ResolvedTextStyle>
+  abbreviations: Record<string, string>
   measurer: Measurer
-  toPx: ToPx
 }
 
 interface Token {
@@ -68,8 +65,8 @@ interface Token {
   width: number
   marginBefore: number
   marginAfter: number
-  style: TextStyle
-  background?: Background
+  style: ResolvedTextStyle
+  background?: ResolvedBackground
 }
 
 type PlacedToken = Token & { offset: number }
@@ -79,13 +76,14 @@ interface Line {
 }
 
 const mergeStyles = (
-  baseStyle: TextStyle,
+  baseStyle: ResolvedTextStyle,
   names: string[],
-  resolveStyle: (name: string) => TextStyle,
-): TextStyle => names.reduce((acc, name) => ({ ...acc, ...resolveStyle(name) }), baseStyle)
+  styles: Record<string, ResolvedTextStyle>,
+): ResolvedTextStyle =>
+  names.reduce((acc, name) => ({ ...acc, ...(styles[name] ?? {}) }), baseStyle)
 
 function measure(input: LayoutInput, sizePx: number) {
-  const { measurer, baseStyle, toPx, resolveStyle, resolveAbbr } = input
+  const { measurer, baseStyle, styles, abbreviations } = input
   measurer.setFont(baseStyle, sizePx)
   const cap = measurer.capHeight
 
@@ -93,14 +91,14 @@ function measure(input: LayoutInput, sizePx: number) {
   const paragraphs = input.paragraphs.map((markup) => {
     const tokens: Token[] = []
     for (const node of parseMarkup(markup)) {
-      const style = mergeStyles(baseStyle, node.styles, resolveStyle)
-      const marginBefore = toPx(style.margin?.before, sizePx)
-      const marginAfter = toPx(style.margin?.after, sizePx)
+      const style = mergeStyles(baseStyle, node.styles, styles)
+      const marginBefore = style.margin?.before ?? 0
+      const marginAfter = style.margin?.after ?? 0
       const id = nodeId++
       measurer.setFont(style, sizePx)
 
       if (node.type === "abbr") {
-        const src = resolveAbbr(node.id)
+        const src = abbreviations[node.id]
         tokens.push({
           nodeId: id,
           isSpace: false,
@@ -166,18 +164,22 @@ function backgroundsOf(
   alignOffset: number,
   baseline: number,
   cap: number,
-  toPx: ToPx,
 ): BackgroundBox[] {
   const backgrounds: BackgroundBox[] = []
-  let segment: { nodeId: number; start: number; end: number; background: Background } | null = null
+  let segment: {
+    nodeId: number
+    start: number
+    end: number
+    background: ResolvedBackground
+  } | null = null
 
   const commit = () => {
     if (!segment) return
     const outset = segment.background.outset ?? {}
-    const top = toPx(outset.top)
-    const right = toPx(outset.right)
-    const bottom = toPx(outset.bottom)
-    const left = toPx(outset.left)
+    const top = outset.top ?? 0
+    const right = outset.right ?? 0
+    const bottom = outset.bottom ?? 0
+    const left = outset.left ?? 0
     backgrounds.push({
       x: segment.start - left,
       y: baseline - cap - top,
@@ -253,7 +255,7 @@ function tryLayout(input: LayoutInput, sizePx: number): Layout | null {
     for (const line of lines) {
       const alignOffset = input.align === "center" ? (input.boxWidth - line.width) / 2 : 0
       const baseline = y + cap
-      backgrounds.push(...backgroundsOf(line, alignOffset, baseline, cap, input.toPx))
+      backgrounds.push(...backgroundsOf(line, alignOffset, baseline, cap))
       content.push(...contentOf(line, alignOffset, baseline, cap, sizePx))
       y += lineStep
     }

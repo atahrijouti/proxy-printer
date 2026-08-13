@@ -1,12 +1,13 @@
 /* @refresh reload */
 import { render } from "solid-js/web"
-import { createEffect, createSignal, For, Show, type Component } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 
 import "./index.css"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
 import { CanvasMeasurer, drawCard } from "./render"
+import { resolvePresentation, type ResolvedPresentation } from "./resolve"
 import { loadFonts, loadImages } from "./resources"
 import type { Card, DB } from "./types"
 
@@ -33,12 +34,18 @@ function imageUrls(db: DB): string[] {
 }
 
 // double-buffered: draw the card to an offscreen canvas, then blit to the target
-function renderCard(card: Card, ready: Loaded, scale: number): HTMLCanvasElement {
+function renderCard(
+  card: Card,
+  presentation: ResolvedPresentation,
+  images: Map<string, HTMLImageElement>,
+  measurer: CanvasMeasurer,
+  scale: number,
+): HTMLCanvasElement {
   const offscreen = document.createElement("canvas")
   offscreen.width = CARD_WIDTH_MM * scale
   offscreen.height = CARD_HEIGHT_MM * scale
   const ctx = offscreen.getContext("2d")!
-  drawCard(ctx, card, ready.db.presentation, ready.images, ready.measurer, scale)
+  drawCard(ctx, card, presentation, images, measurer, scale)
   return offscreen
 }
 
@@ -75,10 +82,21 @@ const App: Component = () => {
     return isCardBack() ? cardBacks(ready.db) : selectFromDeck(ready.db.cards, deck())
   }
 
+  // resolve the presentation to on-screen px once per load, shared by every card canvas
+  const screenPresentation = createMemo(() => {
+    const ready = loaded()
+    return ready ? resolvePresentation(ready.db.presentation, SCALE) : null
+  })
+
   async function downloadPdf() {
     const ready = loaded()
     if (!ready) return
-    const urls = cards().map((card) => renderCard(card, ready, PDF_SCALE).toDataURL("image/png"))
+    const presentation = resolvePresentation(ready.db.presentation, PDF_SCALE)
+    const urls = cards().map((card) =>
+      renderCard(card, presentation, ready.images, ready.measurer, PDF_SCALE).toDataURL(
+        "image/png",
+      ),
+    )
     const blob = await buildPdf(urls)
     const href = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
@@ -125,10 +143,17 @@ const App: Component = () => {
               let canvas!: HTMLCanvasElement
               createEffect(() => {
                 const ready = loaded()
-                if (!ready) return
+                const presentation = screenPresentation()
+                if (!ready || !presentation) return
                 canvas.width = CARD_WIDTH_MM * SCALE
                 canvas.height = CARD_HEIGHT_MM * SCALE
-                canvas.getContext("2d")!.drawImage(renderCard(card, ready, SCALE), 0, 0)
+                canvas
+                  .getContext("2d")!
+                  .drawImage(
+                    renderCard(card, presentation, ready.images, ready.measurer, SCALE),
+                    0,
+                    0,
+                  )
               })
               return <canvas ref={canvas} class="card" />
             }}

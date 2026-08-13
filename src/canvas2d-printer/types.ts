@@ -16,32 +16,34 @@
 //  6. Shrink-to-fit: if the block overflows its box height, reduce the base size until it fits.
 
 // a measurement with a unit, resolved to device px by lengthToPx
-export type Length = string // "3.5mm" | "0.8em" | "6px"
+export type Length = string // "3.5mm" | "6px" | "2pt"
 export type StyleName = string // key of a style in the presentation's styles registry
 
-export interface Background {
+// Length-bearing types are parameterized by how a length is represented: `Length` (mm/px/pt
+// strings) while authored, `number` (device px) after `resolvePresentation` scales them.
+export interface Background<L = Length> {
   fill: string
-  outset?: { top?: Length; right?: Length; bottom?: Length; left?: Length }
-  corners?: { topLeft?: Length; topRight?: Length; bottomRight?: Length; bottomLeft?: Length }
+  outset?: { top?: L; right?: L; bottom?: L; left?: L }
+  corners?: { topLeft?: L; topRight?: L; bottomRight?: L; bottomLeft?: L }
 }
 
-export interface Margin {
-  before?: Length
-  after?: Length
+export interface Margin<L = Length> {
+  before?: L
+  after?: L
 }
 
 // core text properties every renderer honours (a named style is TextStyle + positioning)
-export interface TextStyle {
+export interface TextStyle<L = Length> {
   fontFamily?: string
   fontWeight?: number
   fontStyle?: "normal" | "italic"
-  fontSize?: Length
+  fontSize?: L
   color?: string
   opacity?: number
-  letterSpacing?: Length
+  letterSpacing?: L
   uppercase?: boolean
-  background?: Background
-  margin?: Margin
+  background?: Background<L>
+  margin?: Margin<L>
 }
 
 export type Overlay =
@@ -50,14 +52,19 @@ export type Overlay =
   | { type: "text"; style: StyleName; content: string | string[] }
 
 // a named style is a TextStyle plus where and how it is placed on the card
-export interface Style extends TextStyle {
+export interface Style<L = Length> extends TextStyle<L> {
   mode?: "inline" | "block"
-  box?: { x?: Length; y?: Length; w?: Length; h?: Length }
+  box?: { x?: L; y?: L; w?: L; h?: L }
   align?: "left" | "center"
   valign?: "top" | "center"
   lineHeight?: number
-  paragraphGap?: Length
+  paragraphGap?: L
 }
+
+// the same model after lengths have been resolved to device px
+export type ResolvedBackground = Background<number>
+export type ResolvedTextStyle = TextStyle<number>
+export type ResolvedStyle = Style<number>
 
 export interface FontSpec {
   fontFamily: string
