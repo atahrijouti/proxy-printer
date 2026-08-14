@@ -9,12 +9,13 @@ import { toMillimetres } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
-// one run of a paragraph: styled text, or an inline symbol (its resolved image URL)
-export type StyledRun = { style: Style; text: string } | { style: Style; symbolSrc: string }
+// one span of a paragraph: styled text, or an inline symbol (its resolved image URL)
+export type Span = { style: Style; text: string } | { style: Style; symbolSrc: string }
+export type Paragraph = Span[]
 
 export interface ComposedText {
   mode: "inline" | "block"
-  paragraphs: StyledRun[][]
+  content: Paragraph[]
   style: Style // the block's base style (font, align, valign, lineHeight, paragraphGap)
   boxXMm: number
   boxYMm: number
@@ -36,11 +37,11 @@ export function composeText(
   )
   // a block wraps each paragraph; an inline style is a single line, so join first
   const markups = mode === "block" ? raw : [raw.join(" ")]
-  const paragraphs = markups.map((markup) => composeParagraph(markup, base, styles, abbreviations))
+  const content = markups.map((markup) => composeParagraph(markup, base, styles, abbreviations))
 
   return {
     mode,
-    paragraphs,
+    content,
     style: base,
     boxXMm: toMillimetres(base.box?.x),
     boxYMm: toMillimetres(base.box?.y),
@@ -54,21 +55,21 @@ function composeParagraph(
   base: Style,
   styles: Record<string, Style>,
   abbreviations: Record<string, string>,
-): StyledRun[] {
-  const runs: StyledRun[] = []
+): Paragraph {
+  const spans: Span[] = []
   for (const node of parseMarkup(markup)) {
-    const style = mergeStyle(base, node.styles, styles)
-    if (node.kind === "abbr") {
+    const style = mergeStyleNames(base, node.styles, styles)
+    if (node.type === "abbr") {
       const symbolSrc = abbreviations[node.id]
       if (!symbolSrc) throw new Error(`unknown abbreviation: {abbr ${node.id}}`)
-      runs.push({ style, symbolSrc })
+      spans.push({ style, symbolSrc })
     } else {
-      runs.push({ style, text: node.text })
+      spans.push({ style, text: node.text })
     }
   }
-  return runs
+  return spans
 }
 
-// merge a base style with the {t NAME} overrides active over a run, left to right
-const mergeStyle = (base: Style, names: string[], styles: Record<string, Style>): Style =>
+// merge a base style with the {t NAME} style-names active over a span, left to right
+const mergeStyleNames = (base: Style, names: string[], styles: Record<string, Style>): Style =>
   names.reduce((merged, name) => ({ ...merged, ...(styles[name] ?? {}) }), base)

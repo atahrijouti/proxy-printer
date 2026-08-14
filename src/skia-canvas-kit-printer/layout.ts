@@ -5,7 +5,7 @@
 
 import type { Image, Paragraph, ParagraphBuilder, TextStyle as CkTextStyle } from "canvaskit-wasm"
 import { CARD_WIDTH_MM } from "./card"
-import type { ComposedText, StyledRun } from "./compose"
+import type { ComposedText, Span } from "./compose"
 import type { RenderContext } from "./engine"
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
@@ -21,7 +21,7 @@ export interface PlacedParagraph {
   x: number
   y: number
 }
-export interface PlacedPill {
+export interface PlacedBackground {
   left: number
   top: number
   right: number
@@ -35,104 +35,105 @@ export interface PlacedSymbol {
   y: number
   size: number
 }
-export interface Placed {
+export interface Layout {
+  backgrounds: PlacedBackground[]
   paragraphs: PlacedParagraph[]
-  pills: PlacedPill[]
   symbols: PlacedSymbol[]
 }
 
-export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Placed {
+export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Layout {
   const fontSizeMm = toMillimetres(composed.style.fontSize)
-  const placed: Placed = { paragraphs: [], pills: [], symbols: [] }
+  const layout: Layout = { backgrounds: [], paragraphs: [], symbols: [] }
 
   if (composed.mode === "block") {
     const boxX = px(composed.boxXMm, ctx)
     const wrapWidth = px(composed.boxWidthMm, ctx)
     const gap = px(toMillimetres(composed.style.paragraphGap, fontSizeMm), ctx)
-    const built = composed.paragraphs.map((runs) =>
-      buildParagraph(ctx, composed.style, runs, fontSizeMm, wrapWidth),
+    const measured = composed.content.map((spans) =>
+      buildParagraph(ctx, composed.style, spans, fontSizeMm, wrapWidth),
     )
     const total =
-      built.reduce((sum, b) => sum + b.paragraph.getHeight(), 0) +
-      gap * Math.max(0, built.length - 1)
+      measured.reduce((sum, m) => sum + m.paragraph.getHeight(), 0) +
+      gap * Math.max(0, measured.length - 1)
     const spare = px(composed.boxHeightMm, ctx) - total
     let y =
       composed.style.valign === "center"
         ? px(composed.boxYMm, ctx) + Math.max(0, spare / 2)
         : px(composed.boxYMm, ctx)
-    for (const b of built) {
-      place(placed, ctx, b, boxX, y, fontSizeMm)
-      y += b.paragraph.getHeight() + gap
+    for (const m of measured) {
+      placeParagraph(layout, ctx, m, boxX, y, fontSizeMm)
+      y += m.paragraph.getHeight() + gap
     }
   } else {
-    const runs = composed.paragraphs[0] ?? []
-    const built = buildParagraph(ctx, composed.style, runs, fontSizeMm, UNBOUNDED_WIDTH_PX)
-    const width = built.paragraph.getMaxIntrinsicWidth()
+    const spans = composed.content[0] ?? []
+    const measured = buildParagraph(ctx, composed.style, spans, fontSizeMm, UNBOUNDED_WIDTH_PX)
+    const width = measured.paragraph.getMaxIntrinsicWidth()
     const x =
       composed.style.align === "center"
         ? (px(CARD_WIDTH_MM, ctx) - width) / 2
         : px(composed.boxXMm, ctx)
-    const y = capTop(ctx, composed.style, px(composed.boxYMm, ctx), fontSizeMm, built.paragraph)
-    place(placed, ctx, built, x, y, fontSizeMm)
+    const y = capTop(ctx, composed.style, px(composed.boxYMm, ctx), fontSizeMm, measured.paragraph)
+    placeParagraph(layout, ctx, measured, x, y, fontSizeMm)
   }
 
-  return placed
+  return layout
 }
 
-// ── Building a canvaskit paragraph from composed runs ────────────────────────────────
+// ── Building a canvaskit paragraph from composed spans ────────────────────────────────
 interface InlineSymbol {
   image: Image
   drop: number
 }
-interface PillRange {
+interface BackgroundRange {
   start: number
   end: number
   style: Style
 }
-interface Built {
+// a laid-out canvaskit paragraph plus the data needed to place its symbols and backgrounds
+interface MeasuredParagraph {
   paragraph: Paragraph
   placeholders: (InlineSymbol | null)[] // index-aligned with the paragraph's placeholders
-  pills: PillRange[]
+  backgrounds: BackgroundRange[]
 }
 
 function buildParagraph(
   ctx: RenderContext,
   base: Style,
-  runs: StyledRun[],
+  spans: Span[],
   fontSizeMm: number,
   wrapWidthPx: number,
-): Built {
+): MeasuredParagraph {
   const paragraphStyle = new ctx.ck.ParagraphStyle({
-    textStyle: textStyle(ctx, base, fontSizeMm),
+    textStyle: toTextStyle(ctx, base, fontSizeMm),
     textAlign: ctx.ck.TextAlign.Left,
   })
   const builder = ctx.ck.ParagraphBuilder.MakeFromFontProvider(paragraphStyle, ctx.fonts)
   const placeholders: (InlineSymbol | null)[] = []
-  const pills: PillRange[] = []
+  const backgrounds: BackgroundRange[] = []
 
   let offset = 0
-  for (const run of runs)
-    offset = addRun(ctx, builder, run, fontSizeMm, offset, placeholders, pills)
+  for (const span of spans)
+    offset = addSpan(ctx, builder, span, fontSizeMm, offset, placeholders, backgrounds)
 
   const paragraph = builder.build()
   builder.delete()
   paragraph.layout(wrapWidthPx)
-  return { paragraph, placeholders, pills }
+  return { paragraph, placeholders, backgrounds }
 }
 
-function addRun(
+function addSpan(
   ctx: RenderContext,
   builder: ParagraphBuilder,
-  run: StyledRun,
+  span: Span,
   fontSizeMm: number,
   offset: number,
   placeholders: (InlineSymbol | null)[],
-  pills: PillRange[],
+  backgrounds: BackgroundRange[],
 ): number {
-  if ("symbolSrc" in run) {
-    const image = ctx.images.get(run.symbolSrc)
+  if ("symbolSrc" in span) {
+    const image = ctx.images.get(span.symbolSrc)
     if (!image) return offset
-    const cap = capHeightPx(ctx, run.style, fontSizeMm)
+    const cap = capHeightPx(ctx, span.style, fontSizeMm)
     const size = cap * INLINE_IMAGE_CAP_RATIO
     builder.addPlaceholder(
       size,
@@ -145,15 +146,15 @@ function addRun(
     return offset + 1
   }
 
-  const text = run.style.uppercase ? run.text.toUpperCase() : run.text
-  builder.pushStyle(textStyle(ctx, run.style, fontSizeMm))
+  const text = span.style.uppercase ? span.text.toUpperCase() : span.text
+  builder.pushStyle(toTextStyle(ctx, span.style, fontSizeMm))
   builder.addText(text)
   builder.pop()
-  if (!run.style.background) return offset + text.length
+  if (!span.style.background) return offset + text.length
 
-  pills.push({ start: offset, end: offset + text.length, style: run.style })
-  // margin.after is the flow gap after the pill; the box itself extends via outset (placePills)
-  const gap = px(toMillimetres(run.style.margin?.after, fontSizeMm), ctx)
+  backgrounds.push({ start: offset, end: offset + text.length, style: span.style })
+  // margin.after is the flow gap after the background; the box itself extends via outset
+  const gap = px(toMillimetres(span.style.margin?.after, fontSizeMm), ctx)
   builder.addPlaceholder(
     gap,
     1,
@@ -165,43 +166,43 @@ function addRun(
   return offset + text.length + 1
 }
 
-// ── Positioning one built paragraph and deriving its pills / symbols ──────────────────
-function place(
-  into: Placed,
+// ── Positioning one measured paragraph and deriving its backgrounds / symbols ──────────
+function placeParagraph(
+  into: Layout,
   ctx: RenderContext,
-  built: Built,
+  measured: MeasuredParagraph,
   x: number,
   y: number,
   fontSizeMm: number,
 ) {
-  into.paragraphs.push({ paragraph: built.paragraph, x, y })
-  into.pills.push(...placePills(ctx, built, x, y, fontSizeMm))
-  into.symbols.push(...placeSymbols(built, x, y))
+  into.paragraphs.push({ paragraph: measured.paragraph, x, y })
+  into.backgrounds.push(...placeBackgrounds(ctx, measured, x, y, fontSizeMm))
+  into.symbols.push(...placeSymbols(measured, x, y))
 }
 
-function placePills(
+function placeBackgrounds(
   ctx: RenderContext,
-  built: Built,
+  measured: MeasuredParagraph,
   originX: number,
   originY: number,
   fontSizeMm: number,
-): PlacedPill[] {
-  const lines = built.paragraph.getLineMetrics()
-  const placed: PlacedPill[] = []
-  for (const pill of built.pills) {
-    const background = pill.style.background
+): PlacedBackground[] {
+  const lines = measured.paragraph.getLineMetrics()
+  const placed: PlacedBackground[] = []
+  for (const range of measured.backgrounds) {
+    const background = range.style.background
     if (!background) continue
     const outset = resolveOutset(background.outset, fontSizeMm)
     const radius = px(toMillimetres(background.corners?.bottomRight), ctx)
-    const capHeight = capHeightPx(ctx, pill.style, fontSizeMm)
-    for (const { rect } of built.paragraph.getRectsForRange(
-      pill.start,
-      pill.end,
+    const capHeight = capHeightPx(ctx, range.style, fontSizeMm)
+    for (const { rect } of measured.paragraph.getRectsForRange(
+      range.start,
+      range.end,
       ctx.ck.RectHeightStyle.Max,
       ctx.ck.RectWidthStyle.Tight,
     )) {
       const line =
-        lines.find((l) => pill.start >= l.startIndex && pill.start < l.endIndex) ?? lines[0]
+        lines.find((l) => range.start >= l.startIndex && range.start < l.endIndex) ?? lines[0]
       const baseline = originY + (line?.baseline ?? 0)
       placed.push({
         left: originX + rect[0] - px(outset.left, ctx),
@@ -216,11 +217,15 @@ function placePills(
   return placed
 }
 
-function placeSymbols(built: Built, originX: number, originY: number): PlacedSymbol[] {
-  const lines = built.paragraph.getLineMetrics()
+function placeSymbols(
+  measured: MeasuredParagraph,
+  originX: number,
+  originY: number,
+): PlacedSymbol[] {
+  const lines = measured.paragraph.getLineMetrics()
   const placed: PlacedSymbol[] = []
-  built.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
-    const symbol = built.placeholders[i]
+  measured.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
+    const symbol = measured.placeholders[i]
     if (!symbol) return
     const size = rect[2] - rect[0]
     const midY = (rect[1] + rect[3]) / 2
@@ -264,14 +269,14 @@ const resolveOutset = (
   left: toMillimetres(outset?.left, emMm),
 })
 
-// hex "#rrggbb" → a canvaskit colour (alpha from opacity); shared with render.ts for pills
+// hex "#rrggbb" → a canvaskit colour (alpha from opacity); shared with render.ts for backgrounds
 export const toColor = (ctx: RenderContext, hex: string, opacity = 1) => {
   const value = hex.replace("#", "")
   const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)
   return ctx.ck.Color(channel(0), channel(2), channel(4), opacity)
 }
 
-const weightOf = (ctx: RenderContext, weight = 400) => {
+const toFontWeight = (ctx: RenderContext, weight = 400) => {
   const w = ctx.ck.FontWeight
   if (weight <= 300) return w.Light
   if (weight <= 400) return w.Normal
@@ -282,13 +287,13 @@ const weightOf = (ctx: RenderContext, weight = 400) => {
   return w.Black
 }
 
-const textStyle = (ctx: RenderContext, style: Style, fontSizeMm: number): CkTextStyle =>
+const toTextStyle = (ctx: RenderContext, style: Style, fontSizeMm: number): CkTextStyle =>
   new ctx.ck.TextStyle({
     color: toColor(ctx, style.color ?? "#000000", style.opacity ?? 1),
     fontFamilies: [style.fontFamily ?? "Bogle"],
     fontSize: px(fontSizeMm, ctx),
     fontStyle: {
-      weight: weightOf(ctx, style.fontWeight),
+      weight: toFontWeight(ctx, style.fontWeight),
       slant: style.fontStyle === "italic" ? ctx.ck.FontSlant.Italic : ctx.ck.FontSlant.Upright,
     },
     letterSpacing: px(toMillimetres(style.letterSpacing), ctx),

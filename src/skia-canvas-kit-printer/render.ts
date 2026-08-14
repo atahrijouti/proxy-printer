@@ -8,7 +8,7 @@ import type { Canvas, Image } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
 import type { RenderContext } from "./engine"
-import { layoutOverlay, toColor, type Placed } from "./layout"
+import { layoutOverlay, toColor, type Layout } from "./layout"
 import type { Card, Overlay } from "./types"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
@@ -22,7 +22,7 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
   let run: TextOverlay[] = []
   const flush = () => {
     if (run.length === 0) return
-    layers.push({ type: "text", src: rasterizeTextRun(ctx, run) })
+    layers.push({ type: "text", src: rasterizeText(ctx, run) })
     run = []
   }
   for (const overlay of card.overlays ?? []) {
@@ -39,14 +39,14 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
 }
 
 // draw a run of text overlays onto one transparent card-sized surface → a PNG data URL
-function rasterizeTextRun(ctx: RenderContext, overlays: TextOverlay[]): string {
+function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   const surface = ctx.ck.MakeSurface(CARD_WIDTH_MM * ctx.scale, CARD_HEIGHT_MM * ctx.scale)
   if (!surface) throw new Error("could not create raster surface")
   const canvas = surface.getCanvas()
   canvas.clear(ctx.ck.TRANSPARENT)
   for (const overlay of overlays) {
-    const placed = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.abbreviations))
-    drawPlaced(canvas, ctx, placed)
+    const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.abbreviations))
+    drawLayout(canvas, ctx, layout)
   }
   surface.flush()
   const image = surface.makeImageSnapshot()
@@ -57,21 +57,21 @@ function rasterizeTextRun(ctx: RenderContext, overlays: TextOverlay[]): string {
   return pngDataUrl(png)
 }
 
-// pills first (behind), then the text, then inline symbols on top
-function drawPlaced(canvas: Canvas, ctx: RenderContext, placed: Placed) {
-  for (const pill of placed.pills) {
+// backgrounds first (behind), then the text, then inline symbols on top
+function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
+  for (const background of layout.backgrounds) {
     const paint = new ctx.ck.Paint()
-    paint.setColor(toColor(ctx, pill.fill))
+    paint.setColor(toColor(ctx, background.fill))
     paint.setAntiAlias(true)
-    const { left, top, right, bottom, radius } = pill
+    const { left, top, right, bottom, radius } = background
     canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)
     paint.delete()
   }
-  for (const { paragraph, x, y } of placed.paragraphs) {
+  for (const { paragraph, x, y } of layout.paragraphs) {
     canvas.drawParagraph(paragraph, x, y)
     paragraph.delete()
   }
-  for (const symbol of placed.symbols)
+  for (const symbol of layout.symbols)
     drawImageBox(canvas, ctx, symbol.image, symbol.x, symbol.y, symbol.size)
 }
 
