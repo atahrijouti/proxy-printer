@@ -11,8 +11,10 @@ declare module "pdfkit/js/pdfkit.standalone.js" {
     fillOpacity(opacity: number): PDFDoc
     text(text: string, x: number, y: number, options?: Record<string, unknown>): PDFDoc
     rect(x: number, y: number, width: number, height: number): PDFDoc
+    roundedRect(x: number, y: number, width: number, height: number, radius: number): PDFDoc
     path(svgPath: string): PDFDoc
     fill(color?: string): PDFDoc
+    clip(rule?: string): PDFDoc
     save(): PDFDoc
     restore(): PDFDoc
     translate(x: number, y: number): PDFDoc
