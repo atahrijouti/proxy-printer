@@ -31,7 +31,7 @@ export function composeText(
   const isBlock = base.mode === "block"
   const fontSize = base.fontSize ?? presentation.defaultFontSize
 
-  const style: BlockStyle = {
+  const blockStyle: BlockStyle = {
     ...toSpanStyle(base),
     fontSize,
     align: base.align ?? "left",
@@ -44,13 +44,13 @@ export function composeText(
   const content: Paragraph[] = paragraphs.map((markup) => {
     const spans: Span[] = []
     for (const node of parseMarkup(markup)) {
-      const style = toSpanStyle(mergeStyleNames(node.styles, presentation.styles))
+      const spanStyle = toSpanStyle(mergeStyleNames(node.styles, presentation.styles))
       if (node.type === "abbr") {
         const src = presentation.abbreviations[node.id]
         if (!src) console.warn(`unknown abbreviation: "${node.id}"`)
-        spans.push({ image: { src, aspect: imageAspect(src) }, style })
+        spans.push({ image: { src, aspect: imageAspect(src) }, style: spanStyle })
       } else {
-        spans.push({ text: node.text, style })
+        spans.push({ text: node.text, style: spanStyle })
       }
     }
     return spans
@@ -71,7 +71,7 @@ export function composeText(
   }
   const originY = base.box?.y ?? 0
 
-  return { content, box, style, originX, originY }
+  return { content, box, style: blockStyle, originX, originY }
 }
 
 // resolve a style-name stack against the registry, with no base — the span's overrides only,
