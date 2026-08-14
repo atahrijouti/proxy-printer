@@ -97,6 +97,10 @@ function drawItem(
       if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.w, item.h)
       return
     }
+    default: {
+      const _exhaustive: never = item
+      return _exhaustive
+    }
   }
 }
 
@@ -152,6 +156,10 @@ function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
     case "text":
       drawTextOverlay(ctx, overlay, env)
       return
+    default: {
+      const _exhaustive: never = overlay
+      return _exhaustive
+    }
   }
 }
 
