@@ -84,22 +84,26 @@ const FALLBACK_CAP_RATIO = 0.7
 const INLINE_IMAGE_CAP_RATIO = 1.15 // inline image height as a multiple of cap-height
 
 // a token after inheritance + tokenizing + uppercase, but before measuring (all scale-independent)
-interface Token {
+interface BaseToken {
   spanId: number
   isSpace: boolean
-  text?: string
-  imageSrc?: string
-  aspect?: number
   style: SpanStyle
   fontSize: number
   marginBefore: number
   marginAfter: number
 }
-// a Token plus its measured width and cap-height at its fontSize
-interface MeasuredToken extends Token {
-  width: number
-  cap: number
+interface TextToken extends BaseToken {
+  type: "text"
+  text: string
 }
+interface ImageToken extends BaseToken {
+  type: "image"
+  src: string
+  aspect: number
+}
+type Token = TextToken | ImageToken
+// a Token plus its measured width and cap-height at its fontSize
+type MeasuredToken = Token & { width: number; cap: number }
 type PlacedToken = MeasuredToken & { offset: number }
 interface Line {
   tokens: PlacedToken[]
@@ -168,9 +172,9 @@ export class Flow {
       this.ctx.letterSpacing = `${token.style.letterSpacing ?? 0}px`
       const cap = this.capHeight(token.fontSize)
       const width =
-        token.imageSrc !== undefined
-          ? cap * INLINE_IMAGE_CAP_RATIO * (token.aspect ?? 1)
-          : this.ctx.measureText(token.text ?? "").width
+        token.type === "image"
+          ? cap * INLINE_IMAGE_CAP_RATIO * token.aspect
+          : this.ctx.measureText(token.text).width
       return { ...token, width, cap }
     })
   }
@@ -194,9 +198,10 @@ function tokenize(spans: Paragraph, style: BlockStyle): Token[] {
 
     if ("image" in span) {
       tokens.push({
+        type: "image",
         spanId: id,
         isSpace: false,
-        imageSrc: span.image.src,
+        src: span.image.src,
         aspect: span.image.aspect,
         style: spanStyle,
         fontSize,
@@ -210,6 +215,7 @@ function tokenize(spans: Paragraph, style: BlockStyle): Token[] {
     const parts = text.split(/(\s+)/).filter((part) => part !== "")
     parts.forEach((part, index) => {
       tokens.push({
+        type: "text",
         spanId: id,
         isSpace: /^\s+$/.test(part),
         text: part,
@@ -320,7 +326,7 @@ function contentOf(
   return line.tokens
     .filter((token) => !token.isSpace)
     .map((token) =>
-      token.imageSrc
+      token.type === "image"
         ? {
             type: "image",
             x: alignOffset + token.offset,
@@ -328,13 +334,13 @@ function contentOf(
             y: baseline - (token.cap * (1 + INLINE_IMAGE_CAP_RATIO)) / 2,
             width: token.width,
             height: token.cap * INLINE_IMAGE_CAP_RATIO,
-            src: token.imageSrc,
+            src: token.src,
           }
         : {
             type: "text",
             x: alignOffset + token.offset,
             baseline,
-            text: token.text!,
+            text: token.text,
             style: token.style,
             fontSize: token.fontSize,
           },
