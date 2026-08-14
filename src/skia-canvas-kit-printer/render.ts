@@ -64,7 +64,7 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   }
 }
 
-// backgrounds first (behind), then the text, then inline symbols on top
+// backgrounds first (behind), then the text, then inline images on top
 function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
   try {
     for (const background of layout.backgrounds) {
@@ -76,8 +76,8 @@ function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
-    for (const symbol of layout.symbols)
-      drawImageBox(canvas, ctx, symbol.image, symbol.x, symbol.y, symbol.size)
+    for (const inlineImage of layout.images)
+      drawImageBox(canvas, ctx, inlineImage.image, inlineImage.x, inlineImage.y, inlineImage.size)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }

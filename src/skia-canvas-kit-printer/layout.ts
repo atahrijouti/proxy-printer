@@ -16,7 +16,7 @@ import { FALLBACK_CAP_RATIO, toColor, type RenderContext } from "./engine"
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
 
-// An inline {abbr} symbol is sized to 1.15× the surrounding text's cap height and centred
+// An inline {abbr} image is sized to 1.15× the surrounding text's cap height and centred
 // on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
 const INLINE_IMAGE_CAP_RATIO = 1.15
 const UNBOUNDED_WIDTH_PX = 1e6 // an inline (single-line) style never wraps
@@ -38,7 +38,7 @@ export interface PlacedBackground {
   radius: number
   fill: string // hex; render turns it into a canvaskit colour
 }
-export interface PlacedSymbol {
+export interface PlacedImage {
   image: Image
   x: number
   y: number
@@ -47,11 +47,11 @@ export interface PlacedSymbol {
 export interface Layout {
   backgrounds: PlacedBackground[]
   paragraphs: PlacedParagraph[]
-  symbols: PlacedSymbol[]
+  images: PlacedImage[]
 }
 
 export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Layout {
-  const layout: Layout = { backgrounds: [], paragraphs: [], symbols: [] }
+  const layout: Layout = { backgrounds: [], paragraphs: [], images: [] }
   if (composed.mode === "block") layoutBlock(ctx, composed, layout)
   else layoutInline(ctx, composed, layout)
   return layout
@@ -124,7 +124,7 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
 }
 
 // ── Building a canvaskit paragraph from composed spans ────────────────────────────────
-interface InlineSymbol {
+interface InlineImage {
   image: Image
   drop: number
 }
@@ -133,10 +133,10 @@ interface BackgroundRange {
   end: number
   style: Style
 }
-// a laid-out canvaskit paragraph plus the data needed to place its symbols and backgrounds
+// a laid-out canvaskit paragraph plus the data needed to place its images and backgrounds
 interface ShapedParagraph {
   paragraph: Paragraph
-  placeholders: (InlineSymbol | null)[] // index-aligned with the paragraph's placeholders
+  placeholders: (InlineImage | null)[] // index-aligned with the paragraph's placeholders
   backgrounds: BackgroundRange[]
 }
 
@@ -153,7 +153,7 @@ function buildParagraph(
     textAlign: align,
   })
   const builder = ctx.ck.ParagraphBuilder.MakeFromFontProvider(paragraphStyle, ctx.fonts)
-  const placeholders: (InlineSymbol | null)[] = []
+  const placeholders: (InlineImage | null)[] = []
   const backgrounds: BackgroundRange[] = []
 
   let offset = 0
@@ -172,11 +172,11 @@ function addSpan(
   span: Span,
   fontSizeMm: number,
   offset: number,
-  placeholders: (InlineSymbol | null)[],
+  placeholders: (InlineImage | null)[],
   backgrounds: BackgroundRange[],
 ): number {
-  if ("symbolSrc" in span) {
-    const image = ctx.images.get(span.symbolSrc)
+  if ("imageSrc" in span) {
+    const image = ctx.images.get(span.imageSrc)
     if (!image) return offset
     const capHeight = capHeightPx(ctx, span.style, fontSizeMm)
     const size = capHeight * INLINE_IMAGE_CAP_RATIO
@@ -210,7 +210,7 @@ function addMargin(
   marginLength: string | undefined,
   fontSizeMm: number,
   offset: number,
-  placeholders: (InlineSymbol | null)[],
+  placeholders: (InlineImage | null)[],
 ): number {
   const gap = px(toMillimetres(marginLength, fontSizeMm), ctx)
   if (gap <= 0) return offset
@@ -225,7 +225,7 @@ function addMargin(
   return offset + 1
 }
 
-// ── Positioning one shaped paragraph and deriving its backgrounds / symbols ──────────
+// ── Positioning one shaped paragraph and deriving its backgrounds / images ──────────
 function placeParagraph(
   layout: Layout,
   ctx: RenderContext,
@@ -236,7 +236,7 @@ function placeParagraph(
 ) {
   layout.paragraphs.push({ paragraph: shaped.paragraph, x, y })
   layout.backgrounds.push(...placeBackgrounds(ctx, shaped, x, y, fontSizeMm))
-  layout.symbols.push(...placeSymbols(shaped, x, y))
+  layout.images.push(...placeImages(shaped, x, y))
 }
 
 function placeBackgrounds(
@@ -277,18 +277,18 @@ function placeBackgrounds(
   return placed
 }
 
-function placeSymbols(shaped: ShapedParagraph, originX: number, originY: number): PlacedSymbol[] {
+function placeImages(shaped: ShapedParagraph, originX: number, originY: number): PlacedImage[] {
   const lines = shaped.paragraph.getLineMetrics()
-  const placed: PlacedSymbol[] = []
+  const placed: PlacedImage[] = []
   shaped.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
-    const symbol = shaped.placeholders[i]
-    if (!symbol) return
+    const inlineImage = shaped.placeholders[i]
+    if (!inlineImage) return
     const size = rect[2] - rect[0]
     const line = lineAt(lines, (rect[1] + rect[3]) / 2)
     placed.push({
-      image: symbol.image,
+      image: inlineImage.image,
       x: originX + rect[0],
-      y: originY + (line?.baseline ?? 0) - size - symbol.drop,
+      y: originY + (line?.baseline ?? 0) - size - inlineImage.drop,
       size,
     })
   })
