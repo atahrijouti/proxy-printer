@@ -8,7 +8,17 @@ import { cardBacks, selectFromDeck } from "./deck"
 import { compilePdf, compileSvg, configureTypst, loadImages } from "./typst"
 import type { DB } from "./types"
 
-const DEFAULT_URL = "http://localhost:8787/db-typst-print.json"
+const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
+
+const DEFAULT_DECK = `1 tinker bell - giant fairy
+1 genie - powers unleashed
+1 donald duck - musketeer
+1 goofy - musketeer
+1 maximus - palace horse
+1 ariel - spectacular singer
+1 captain hook - thinking a happy thought
+1 aladdin - heroic outlaw
+1 jasmine - queen of agrabah`
 
 type Loaded = { db: DB; imagePath: ImagePath }
 
@@ -27,7 +37,7 @@ function imageUrls(db: DB): string[] {
 
 const App: Component = () => {
   const [dbUrl, setDbUrl] = createSignal(DEFAULT_URL)
-  const [deck, setDeck] = createSignal("")
+  const [deck, setDeck] = createSignal(DEFAULT_DECK)
   const [isCardBack, setIsCardBack] = createSignal(false)
 
   const [loaded, setLoaded] = createSignal<Loaded | null>(null)

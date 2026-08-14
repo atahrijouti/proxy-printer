@@ -10,7 +10,17 @@ import { resolvePresentation } from "./resolve"
 import { loadFonts, loadImages } from "./resources"
 import type { DB } from "./types"
 
-const DEFAULT_URL = "http://localhost:8787/db-canvas2d-print.json"
+const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
+
+const DEFAULT_DECK = `1 tinker bell - giant fairy
+1 genie - powers unleashed
+1 donald duck - musketeer
+1 goofy - musketeer
+1 maximus - palace horse
+1 ariel - spectacular singer
+1 captain hook - thinking a happy thought
+1 aladdin - heroic outlaw
+1 jasmine - queen of agrabah`
 const TEXT_SCALE = 16 // px per mm for rasterizing text layers; the art stays native
 const REVOKE_DELAY_MS = 10_000
 
@@ -26,7 +36,7 @@ function symbolUrls(db: DB): string[] {
 
 const App: Component = () => {
   const [dbUrl, setDbUrl] = createSignal(DEFAULT_URL)
-  const [deck, setDeck] = createSignal("")
+  const [deck, setDeck] = createSignal(DEFAULT_DECK)
   const [isCardBack, setIsCardBack] = createSignal(false)
   const [renderData, setRenderData] = createSignal<RenderData | null>(null)
   const [status, setStatus] = createSignal("Loading…")

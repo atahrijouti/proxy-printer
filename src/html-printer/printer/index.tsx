@@ -5,7 +5,7 @@ import { createMarkup, type Markup, type Abbreviations } from "../helpers/markup
 import "./styles.css"
 
 const CARDS_PER_PAGE = 9
-const STARTING_URL = "http://localhost:8787/db-sv-print.json"
+const STARTING_URL = "http://localhost:8787/db-sv-html-print.json"
 const STARTING_DECK = `1 tinker bell - giant fairy
 1 genie - powers unleashed
 1 donald duck - musketeer
