@@ -38,6 +38,7 @@ export interface Box {
 
 // the block's style: span-inheritable defaults plus block-level layout
 export interface BlockStyle extends SpanStyle {
+  fontSize: number // required: the block's base size, defaulted at ingest; spans inherit it
   align?: "left" | "center"
   valign?: "top" | "center"
   lineHeight?: number
@@ -78,7 +79,6 @@ export interface Layout {
 
 // ── internals ──
 
-const DEFAULT_FONT_SIZE = 16
 const SHRINK_STEP_PX = 1
 const FALLBACK_CAP_RATIO = 0.7
 const INLINE_IMAGE_CAP_RATIO = 1.15 // inline image height as a multiple of cap-height
@@ -125,7 +125,7 @@ export class Flow {
 
   layout(content: Paragraph[], box: Box, style: BlockStyle): Layout {
     const tokenized = content.map((spans) => tokenize(spans, style))
-    const baseFontSize = style.fontSize ?? DEFAULT_FONT_SIZE
+    const baseFontSize = style.fontSize
     const minFontSize = style.minFontSize ?? baseFontSize
     for (let fontSize = baseFontSize; fontSize > minFontSize; fontSize -= SHRINK_STEP_PX) {
       const laid = this.tryLayout(tokenized, box, style, fontSize / baseFontSize)
@@ -194,7 +194,7 @@ function tokenize(spans: Paragraph, style: BlockStyle): Token[] {
   for (const span of spans) {
     const spanStyle: SpanStyle = { ...style, ...span.style }
     const id = spanId++
-    const fontSize = spanStyle.fontSize ?? DEFAULT_FONT_SIZE
+    const fontSize = span.style?.fontSize ?? style.fontSize
     const marginBefore = spanStyle.marginBefore ?? 0
     const marginAfter = spanStyle.marginAfter ?? 0
 
