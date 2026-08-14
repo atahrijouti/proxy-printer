@@ -46,17 +46,23 @@ export async function loadEngine(fonts: FontFace[], imageUrls: string[]): Promis
   await Promise.all(
     fonts.map(async (font) => {
       const bytes = await fetchBytes(font.src)
-      provider.registerFont(bytes, font.family)
-      if (!capRatios.has(font.family)) capRatios.set(font.family, capRatio(bytes))
+      provider.registerFont(bytes, font.fontFamily)
+      if (!capRatios.has(font.fontFamily)) capRatios.set(font.fontFamily, capRatio(bytes))
     }),
   )
 
   const images = new Map<string, Image>()
-  await Promise.all(
-    [...new Set(imageUrls)].map(async (url) => {
-      images.set(url, await decode(ck, url))
-    }),
-  )
+  const engine = { ck, fonts: provider, images, capRatios }
+  await ensureImages(engine, imageUrls)
+  return engine
+}
 
-  return { ck, fonts: provider, images, capRatios }
+// Decode any not-yet-loaded image URLs into the engine's map. Only the {abbr} symbols are
+// loaded this way — card art never enters the WASM heap (it renders as native <img>).
+async function ensureImages(engine: Engine, urls: string[]): Promise<void> {
+  await Promise.all(
+    [...new Set(urls)]
+      .filter((url) => !engine.images.has(url))
+      .map(async (url) => engine.images.set(url, await decode(engine.ck, url))),
+  )
 }

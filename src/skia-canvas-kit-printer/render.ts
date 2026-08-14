@@ -8,11 +8,15 @@ import type {
 import type { Engine } from "./engine"
 import { parseMarkup, type Run } from "./markup"
 import type { Card, Overlay, Presentation, Style } from "./types"
-import { parseEdges, toMillimetres } from "./units"
+import { toMillimetres } from "./units"
 
 export const CARD_WIDTH_MM = 63
 export const CARD_HEIGHT_MM = 88
 export const CARD_RADIUS_MM = 2
+
+// An inline {abbr} symbol is sized to 1.15× the surrounding text's cap height and centred
+// on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
+const INLINE_IMAGE_CAP_RATIO = 1.15
 
 export interface RenderContext extends Engine {
   styles: Record<string, Style>
@@ -39,7 +43,7 @@ interface Built {
 
 const px = (mm: number, ctx: RenderContext) => mm * ctx.scale
 const capHeightPx = (ctx: RenderContext, style: Style, fontSizeMm: number) =>
-  (ctx.capRatios.get(style.font ?? "Bogle") ?? 0.7) * px(fontSizeMm, ctx)
+  (ctx.capRatios.get(style.fontFamily ?? "Bogle") ?? 0.7) * px(fontSizeMm, ctx)
 
 const color = (ctx: RenderContext, hex: string, opacity = 1) => {
   const value = hex.replace("#", "")
@@ -61,14 +65,24 @@ const weightOf = (ctx: RenderContext, weight = 400) => {
 const mergeStyle = (base: Style, names: string[], styles: Record<string, Style>): Style =>
   names.reduce((merged, name) => ({ ...merged, ...(styles[name] ?? {}) }), base)
 
+const resolveOutset = (
+  outset: { top?: string; right?: string; bottom?: string; left?: string } | undefined,
+  emMm: number,
+) => ({
+  top: toMillimetres(outset?.top, emMm),
+  right: toMillimetres(outset?.right, emMm),
+  bottom: toMillimetres(outset?.bottom, emMm),
+  left: toMillimetres(outset?.left, emMm),
+})
+
 const textStyle = (ctx: RenderContext, style: Style, fontSizeMm: number): CkTextStyle =>
   new ctx.ck.TextStyle({
     color: color(ctx, style.color ?? "#000000", style.opacity ?? 1),
-    fontFamilies: [style.font ?? "Bogle"],
+    fontFamilies: [style.fontFamily ?? "Bogle"],
     fontSize: px(fontSizeMm, ctx),
     fontStyle: {
-      weight: weightOf(ctx, style.weight),
-      slant: style.style === "italic" ? ctx.ck.FontSlant.Italic : ctx.ck.FontSlant.Upright,
+      weight: weightOf(ctx, style.fontWeight),
+      slant: style.fontStyle === "italic" ? ctx.ck.FontSlant.Italic : ctx.ck.FontSlant.Upright,
     },
     letterSpacing: px(toMillimetres(style.letterSpacing), ctx),
     heightMultiplier: style.lineHeight,
@@ -90,11 +104,6 @@ const drawImageBox = (
   paint.delete()
 }
 
-const fullBleed = (canvas: Canvas, ctx: RenderContext, url: string) => {
-  const image = ctx.images.get(url)
-  if (image) drawImageBox(canvas, ctx, image, 0, 0, px(CARD_WIDTH_MM, ctx), px(CARD_HEIGHT_MM, ctx))
-}
-
 const addRun = (
   ctx: RenderContext,
   builder: ParagraphBuilder,
@@ -108,17 +117,12 @@ const addRun = (
   const merged = mergeStyle(base, run.styles, ctx.styles)
 
   if (run.kind === "abbr") {
-    const entry = ctx.abbreviations[run.id]
-    if (!entry) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
-    if (entry.type === "text") {
-      builder.pushStyle(textStyle(ctx, merged, fontSizeMm))
-      builder.addText(entry.value)
-      builder.pop()
-      return offset + entry.value.length
-    }
-    const image = ctx.images.get(entry.src)
+    const src = ctx.abbreviations[run.id]
+    if (!src) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
+    const image = ctx.images.get(src)
     if (!image) return offset
-    const size = px(toMillimetres(entry.height, fontSizeMm), ctx)
+    const cap = capHeightPx(ctx, merged, fontSizeMm)
+    const size = cap * INLINE_IMAGE_CAP_RATIO
     builder.addPlaceholder(
       size,
       size,
@@ -126,7 +130,7 @@ const addRun = (
       ctx.ck.TextBaseline.Alphabetic,
       0,
     )
-    placeholders.push({ image, drop: px(toMillimetres(entry.baseline, fontSizeMm), ctx) })
+    placeholders.push({ image, drop: (cap * (1 - INLINE_IMAGE_CAP_RATIO)) / 2 })
     return offset + 1
   }
 
@@ -137,9 +141,10 @@ const addRun = (
   if (!merged.background) return offset + text.length
 
   pills.push({ start: offset, end: offset + text.length, style: merged })
-  const padRight = px(parseEdges(merged.background.padding, fontSizeMm).right, ctx)
+  // margin.after is the flow gap after the pill; the box itself extends via outset (drawPills)
+  const gap = px(toMillimetres(merged.margin?.after, fontSizeMm), ctx)
   builder.addPlaceholder(
-    padRight,
+    gap,
     1,
     ctx.ck.PlaceholderAlignment.Middle,
     ctx.ck.TextBaseline.Alphabetic,
@@ -186,8 +191,7 @@ const drawPills = (
   for (const pill of built.pills) {
     const background = pill.style.background
     if (!background) continue
-    const pad = parseEdges(background.padding, fontSizeMm)
-    const bleed = px(toMillimetres(background.bleedLeft, fontSizeMm), ctx)
+    const outset = resolveOutset(background.outset, fontSizeMm)
     const radius = px(toMillimetres(background.corners?.bottomRight), ctx)
     const capHeight = capHeightPx(ctx, pill.style, fontSizeMm)
 
@@ -200,10 +204,10 @@ const drawPills = (
       const line =
         lines.find((l) => pill.start >= l.startIndex && pill.start < l.endIndex) ?? lines[0]
       const baseline = originY + (line?.baseline ?? 0)
-      const l = originX + rect[0] - bleed
-      const t = baseline - capHeight - px(pad.top, ctx)
-      const r = originX + rect[2] + px(pad.right, ctx)
-      const b = baseline + px(pad.bottom, ctx)
+      const l = originX + rect[0] - px(outset.left, ctx)
+      const t = baseline - capHeight - px(outset.top, ctx)
+      const r = originX + rect[2] + px(outset.right, ctx)
+      const b = baseline + px(outset.bottom, ctx)
       const paint = new ctx.ck.Paint()
       paint.setColor(color(ctx, background.fill))
       paint.setAntiAlias(true)
@@ -313,44 +317,60 @@ const drawTextOverlay = (
   )
   if (!paragraphs.length) return
 
-  const fontSizeMm = toMillimetres(overlay.size ?? style.size)
-  if (style.kind === "block") drawBlock(canvas, ctx, style, paragraphs, fontSizeMm)
+  const fontSizeMm = toMillimetres(style.fontSize)
+  if (style.mode === "block") drawBlock(canvas, ctx, style, paragraphs, fontSizeMm)
   else drawLine(canvas, ctx, style, paragraphs.join(" "), fontSizeMm)
 }
 
-const drawOverlay = (canvas: Canvas, ctx: RenderContext, overlay: Overlay) => {
-  switch (overlay.type) {
-    case "image":
-      return fullBleed(canvas, ctx, overlay.src)
-    case "text":
-      return drawTextOverlay(canvas, ctx, overlay)
-    case "shape":
-      return
+// A card composites as an ordered stack of layers (like canvas2d): base art + image
+// overlays stay native URLs the browser/PDF draws directly; each run of consecutive text
+// overlays is rasterized by canvaskit into one transparent PNG layer. canvaskit never
+// decodes the card art, so the WASM heap stays tiny regardless of deck size.
+export type Layer =
+  | { type: "image"; src: string } // a URL: the base art or an image overlay
+  | { type: "text"; src: string } // a data URL: a rasterized run of consecutive text overlays
+
+export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
+  const layers: Layer[] = [{ type: "image", src: card.image }]
+  let run: Extract<Overlay, { type: "text" }>[] = []
+  const flush = () => {
+    if (run.length === 0) return
+    layers.push({ type: "text", src: rasterizeTextRun(ctx, run) })
+    run = []
   }
+  for (const overlay of card.overlays ?? []) {
+    if (overlay.type === "text") {
+      run.push(overlay)
+      continue
+    }
+    flush()
+    if (overlay.type === "image") layers.push({ type: "image", src: overlay.src })
+    // shape overlays are not implemented — they contribute no layer
+  }
+  flush()
+  return layers
 }
 
-export function renderCardPng(engine: RenderContext, card: Card, scale: number): Uint8Array {
-  const ctx: RenderContext = { ...engine, scale }
-  const surface = ctx.ck.MakeSurface(CARD_WIDTH_MM * scale, CARD_HEIGHT_MM * scale)
+// draw a run of text overlays onto one transparent card-sized surface → a PNG data URL
+function rasterizeTextRun(ctx: RenderContext, overlays: Extract<Overlay, { type: "text" }>[]): string {
+  const surface = ctx.ck.MakeSurface(px(CARD_WIDTH_MM, ctx), px(CARD_HEIGHT_MM, ctx))
   if (!surface) throw new Error("could not create raster surface")
   const canvas = surface.getCanvas()
   canvas.clear(ctx.ck.TRANSPARENT)
-  renderCard(canvas, ctx, card)
+  for (const overlay of overlays) drawTextOverlay(canvas, ctx, overlay)
   surface.flush()
   const image = surface.makeImageSnapshot()
   const png = image.encodeToBytes()
   image.delete()
   surface.delete()
   if (!png) throw new Error("PNG encode failed")
-  return png
+  return pngDataUrl(png)
 }
 
-export function renderCard(canvas: Canvas, ctx: RenderContext, card: Card) {
-  const rect = ctx.ck.LTRBRect(0, 0, px(CARD_WIDTH_MM, ctx), px(CARD_HEIGHT_MM, ctx))
-  const radius = px(CARD_RADIUS_MM, ctx)
-  canvas.save()
-  canvas.clipRRect(ctx.ck.RRectXY(rect, radius, radius), ctx.ck.ClipOp.Intersect, true)
-  fullBleed(canvas, ctx, card.image)
-  for (const overlay of card.overlays ?? []) drawOverlay(canvas, ctx, overlay)
-  canvas.restore()
+function pngDataUrl(bytes: Uint8Array): string {
+  let binary = ""
+  const CHUNK = 0x8000 // chunk so String.fromCharCode(...) never overruns the arg limit
+  for (let i = 0; i < bytes.length; i += CHUNK)
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  return `data:image/png;base64,${btoa(binary)}`
 }

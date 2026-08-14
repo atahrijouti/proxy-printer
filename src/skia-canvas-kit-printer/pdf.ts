@@ -1,22 +1,22 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js"
+import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./render"
+import type { Layer } from "./render"
 
 const MM_TO_PT = 72 / 25.4
 const COLUMNS = 3
 const ROWS = 3
 const PER_PAGE = COLUMNS * ROWS
-const CARD_WIDTH_MM = 63
-const CARD_HEIGHT_MM = 88
 const MARGIN_X_MM = 10.5
 const MARGIN_Y_MM = 16.5
 const EPOCH = new Date(0)
 
-function dataUri(png: Uint8Array): string {
-  let binary = ""
-  for (let i = 0; i < png.length; i++) binary += String.fromCharCode(png[i])
-  return `data:image/png;base64,${btoa(binary)}`
-}
+// each card is a stack of layers placed on one card slot: art layers (URLs) embed their original
+// bytes untouched, text layers are already data URLs. pdfkit composites them in order.
+export async function buildPdf(cards: Layer[][]): Promise<Blob> {
+  const artUrls = [...new Set(cards.flat().flatMap((l) => (l.type === "image" ? [l.src] : [])))]
+  const artData = new Map<string, string>()
+  await Promise.all(artUrls.map(async (url) => artData.set(url, await fetchDataUrl(url))))
 
-export function buildPdf(cardPngs: Uint8Array[]): Promise<Blob> {
   const doc = new PDFDocument({
     size: "A4",
     margin: 0,
@@ -28,19 +28,34 @@ export function buildPdf(cardPngs: Uint8Array[]): Promise<Blob> {
     doc.on("end", () => resolve(new Blob(chunks, { type: "application/pdf" })))
   })
 
-  cardPngs.forEach((png, index) => {
+  const w = CARD_WIDTH_MM * MM_TO_PT
+  const h = CARD_HEIGHT_MM * MM_TO_PT
+  const r = CARD_RADIUS_MM * MM_TO_PT
+  cards.forEach((layers, index) => {
     const slot = index % PER_PAGE
     if (index > 0 && slot === 0) doc.addPage({ size: "A4", margin: 0 })
-    const column = slot % COLUMNS
-    const row = Math.floor(slot / COLUMNS)
-    const x = (MARGIN_X_MM + column * CARD_WIDTH_MM) * MM_TO_PT
-    const y = (MARGIN_Y_MM + row * CARD_HEIGHT_MM) * MM_TO_PT
-    doc.image(dataUri(png), x, y, {
-      width: CARD_WIDTH_MM * MM_TO_PT,
-      height: CARD_HEIGHT_MM * MM_TO_PT,
-    })
+    const x = (MARGIN_X_MM + (slot % COLUMNS) * CARD_WIDTH_MM) * MM_TO_PT
+    const y = (MARGIN_Y_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM) * MM_TO_PT
+    doc.save()
+    doc.roundedRect(x, y, w, h, r).clip()
+    for (const layer of layers) {
+      const src = layer.type === "image" ? artData.get(layer.src) : layer.src
+      if (src) doc.image(src, x, y, { width: w, height: h })
+    }
+    doc.restore()
   })
 
   doc.end()
   return done
+}
+
+// fetch an image's original bytes as a data URL — embedded verbatim (no re-encode)
+async function fetchDataUrl(url: string): Promise<string> {
+  const blob = await (await fetch(url)).blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
 }

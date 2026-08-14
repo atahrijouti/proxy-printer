@@ -1,22 +1,23 @@
 export type Length = string
 
 export interface FontFace {
-  family: string
+  fontFamily: string
+  fontWeight?: number
+  fontStyle?: "normal" | "italic"
   src: string
 }
 
 export interface Background {
   fill: string
-  padding?: string
-  bleedLeft?: Length
+  outset?: { top?: Length; right?: Length; bottom?: Length; left?: Length }
   corners?: { topLeft?: Length; topRight?: Length; bottomRight?: Length; bottomLeft?: Length }
 }
 
 export interface Style {
-  font?: string
-  weight?: number
-  style?: "normal" | "italic"
-  size?: Length
+  fontFamily?: string
+  fontWeight?: number
+  fontStyle?: "normal" | "italic"
+  fontSize?: Length
   color?: string
   opacity?: number
   letterSpacing?: Length
@@ -24,19 +25,17 @@ export interface Style {
   lineHeight?: number
   paragraphGap?: Length
   background?: Background
-  kind?: "line" | "block"
+  margin?: { before?: Length; after?: Length }
+  mode?: "inline" | "block"
   box?: { x?: Length; y?: Length; w?: Length; h?: Length }
   align?: "left" | "center"
   valign?: "top" | "center"
 }
 
-export type Abbreviation =
-  { type: "image"; src: string; height: Length; baseline: Length } | { type: "text"; value: string }
-
 export type Overlay =
   | { type: "image"; src: string }
   | { type: "shape"; style: string }
-  | { type: "text"; style: string; content: string | string[]; size?: Length }
+  | { type: "text"; style: string; content: string | string[] }
 
 export interface Card {
   id: string
@@ -47,7 +46,7 @@ export interface Card {
 export interface Presentation {
   fonts: FontFace[]
   styles: Record<string, Style>
-  abbreviations: Record<string, Abbreviation>
+  abbreviations: Record<string, string> // {abbr NAME} → inline symbol image URL
 }
 
 export interface DB {
