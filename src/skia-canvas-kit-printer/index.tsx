@@ -131,9 +131,8 @@ const App: Component = () => {
 }
 
 const root = document.getElementById("root")
-
-if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
+if (!(root instanceof HTMLElement)) {
   throw new Error("Root element not found in skia-canvas-kit-print.html")
 }
 
-render(() => <App />, root!)
+render(() => <App />, root)

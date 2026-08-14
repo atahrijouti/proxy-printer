@@ -7,8 +7,8 @@
 import type { Canvas, Image } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
-import type { RenderContext } from "./engine"
-import { layoutOverlay, toColor, type Layout } from "./layout"
+import { toColor, type RenderContext } from "./engine"
+import { layoutOverlay, type Layout } from "./layout"
 import type { Card, Overlay } from "./types"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
@@ -38,41 +38,49 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
   return layers
 }
 
-// draw a run of text overlays onto one transparent card-sized surface → a PNG data URL
+// draw a run of text overlays onto one transparent card-sized surface → a PNG data URL.
+// the surface and every paragraph are freed on all paths (finally), so a throw can't leak.
 function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   const surface = ctx.ck.MakeSurface(CARD_WIDTH_MM * ctx.scale, CARD_HEIGHT_MM * ctx.scale)
   if (!surface) throw new Error("could not create raster surface")
-  const canvas = surface.getCanvas()
-  canvas.clear(ctx.ck.TRANSPARENT)
-  for (const overlay of overlays) {
-    const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.abbreviations))
-    drawLayout(canvas, ctx, layout)
+  try {
+    const canvas = surface.getCanvas()
+    canvas.clear(ctx.ck.TRANSPARENT)
+    for (const overlay of overlays) {
+      const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.abbreviations))
+      drawLayout(canvas, ctx, layout)
+    }
+    surface.flush()
+    const image = surface.makeImageSnapshot()
+    try {
+      const png = image.encodeToBytes()
+      if (!png) throw new Error("PNG encode failed")
+      return pngDataUrl(png)
+    } finally {
+      image.delete()
+    }
+  } finally {
+    surface.delete()
   }
-  surface.flush()
-  const image = surface.makeImageSnapshot()
-  const png = image.encodeToBytes()
-  image.delete()
-  surface.delete()
-  if (!png) throw new Error("PNG encode failed")
-  return pngDataUrl(png)
 }
 
 // backgrounds first (behind), then the text, then inline symbols on top
 function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
-  for (const background of layout.backgrounds) {
-    const paint = new ctx.ck.Paint()
-    paint.setColor(toColor(ctx, background.fill))
-    paint.setAntiAlias(true)
-    const { left, top, right, bottom, radius } = background
-    canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)
-    paint.delete()
+  try {
+    for (const background of layout.backgrounds) {
+      const paint = new ctx.ck.Paint()
+      paint.setColor(toColor(ctx, background.fill))
+      paint.setAntiAlias(true)
+      const { left, top, right, bottom, radius } = background
+      canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)
+      paint.delete()
+    }
+    for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
+    for (const symbol of layout.symbols)
+      drawImageBox(canvas, ctx, symbol.image, symbol.x, symbol.y, symbol.size)
+  } finally {
+    for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
-  for (const { paragraph, x, y } of layout.paragraphs) {
-    canvas.drawParagraph(paragraph, x, y)
-    paragraph.delete()
-  }
-  for (const symbol of layout.symbols)
-    drawImageBox(canvas, ctx, symbol.image, symbol.x, symbol.y, symbol.size)
 }
 
 function drawImageBox(

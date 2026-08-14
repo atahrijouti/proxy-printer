@@ -21,16 +21,3 @@ export function toMillimetres(value: string | number | undefined, emInMm = 0): n
       return amount
   }
 }
-
-export function parseEdges(value: string | undefined, emInMm = 0) {
-  const parts = (value ?? "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => toMillimetres(part, emInMm))
-  const top = parts[0] ?? 0
-  const right = parts[1] ?? top
-  const bottom = parts[2] ?? top
-  const left = parts[3] ?? right
-  return { top, right, bottom, left }
-}

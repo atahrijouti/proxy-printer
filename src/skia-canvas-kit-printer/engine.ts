@@ -19,6 +19,16 @@ export interface RenderContext extends Engine {
   scale: number
 }
 
+// cap-height as a fraction of font-size when a font's metric is unavailable (canvas2d parity)
+export const FALLBACK_CAP_RATIO = 0.7
+
+// hex "#rrggbb" → a canvaskit colour (alpha from opacity); used by layout (text) and render (backgrounds)
+export const toColor = (ctx: Engine, hex: string, opacity = 1) => {
+  const value = hex.replace("#", "")
+  const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)
+  return ctx.ck.Color(channel(0), channel(2), channel(4), opacity)
+}
+
 let initialized: Promise<CanvasKit> | null = null
 const canvasKit = () => (initialized ??= CanvasKitInit({ locateFile: () => wasmUrl }))
 
@@ -43,7 +53,7 @@ function capRatio(bytes: Uint8Array): number {
   } catch {
     /* fall through to a sensible default */
   }
-  return 0.7
+  return FALLBACK_CAP_RATIO
 }
 
 export async function loadEngine(fonts: FontFace[], imageUrls: string[]): Promise<Engine> {

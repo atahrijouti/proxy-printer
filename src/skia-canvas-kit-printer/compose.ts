@@ -61,7 +61,10 @@ function composeParagraph(
     const style = mergeStyleNames(base, node.styles, styles)
     if (node.type === "abbr") {
       const symbolSrc = abbreviations[node.id]
-      if (!symbolSrc) throw new Error(`unknown abbreviation: {abbr ${node.id}}`)
+      if (!symbolSrc) {
+        console.warn(`unknown abbreviation: {abbr ${node.id}}`)
+        continue
+      }
       spans.push({ style, symbolSrc })
     } else {
       spans.push({ style, text: node.text })
@@ -72,4 +75,8 @@ function composeParagraph(
 
 // merge a base style with the {t NAME} style-names active over a span, left to right
 const mergeStyleNames = (base: Style, names: string[], styles: Record<string, Style>): Style =>
-  names.reduce((merged, name) => ({ ...merged, ...(styles[name] ?? {}) }), base)
+  names.reduce((merged, name) => {
+    const style = styles[name]
+    if (!style) console.warn(`unknown style: "${name}"`)
+    return { ...merged, ...style }
+  }, base)
