@@ -24,14 +24,14 @@ export class FontBook {
         const response = await fetch(source.src)
         if (!response.ok) throw new Error(`font fetch failed (${response.status}): ${source.src}`)
         const bytes = new Uint8Array(await response.arrayBuffer())
-        const weight = source.weight ?? 400
-        const style = source.style ?? "normal"
+        const weight = source.fontWeight ?? 400
+        const style = source.fontStyle ?? "normal"
 
-        const fontFace = new FontFace(source.family, bytes, { weight: String(weight), style })
+        const fontFace = new FontFace(source.fontFamily, bytes, { weight: String(weight), style })
         await fontFace.load()
         document.fonts.add(fontFace)
 
-        return { metrics: fontkit.create(bytes), family: source.family, weight, style, bytes }
+        return { metrics: fontkit.create(bytes), family: source.fontFamily, weight, style, bytes }
       }),
     )
   }

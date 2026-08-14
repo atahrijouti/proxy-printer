@@ -3,7 +3,7 @@
 // draws the glyphs. Preview and PDF consume the same primitives.
 //
 // The engine is domain-agnostic: it reads a card's ordered `overlays`, each referencing
-// a named style (line or block text, an image, or a content-less shape) plus the
+// a named style (inline or block text, an image, or a content-less shape) plus the
 // {t}/{abbr} inline markup. It knows nothing about keywords, traits, or cards.
 
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./frame"
@@ -16,8 +16,12 @@ import {
   resolveStyle,
   type ResolvedStyle,
 } from "./styling"
-import type { Abbreviation, Card, Presentation, Style } from "./types"
-import { parseEdges, toMillimetres } from "./units"
+import type { Card, Presentation, Style } from "./types"
+import { toMillimetres } from "./units"
+
+// An inline {abbr} symbol is sized to 1.15× the surrounding text's cap height and centred
+// on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
+const INLINE_IMAGE_CAP_RATIO = 1.15
 
 // ── Output primitives (all coordinates in mm) ────────────────────────────────
 export interface ImageBox {
@@ -76,7 +80,7 @@ interface TextToken {
   x: number
 }
 interface GapToken {
-  kind: "space" | "pad" // "space": inter-word gap; "pad": a background's horizontal padding
+  kind: "space" | "pad" // "space": inter-word gap; "pad": an inline margin gap (draws nothing)
   style: ResolvedStyle
   widthInMm: number
   x: number
@@ -94,7 +98,7 @@ type Token = TextToken | GapToken | SymbolToken
 interface LayoutContext {
   fonts: FontBook
   styles: Record<string, Style>
-  abbreviations: Record<string, Abbreviation>
+  abbreviations: Record<string, string>
 }
 
 // ── Tokenizing one paragraph of markup at a given size ───────────────────────
@@ -125,38 +129,33 @@ function tokenize(
   }
 
   for (const run of parseMarkup(paragraph)) {
-    const style = resolveStyle(
-      mergeStyles(baseStyle, run.styles, context.styles),
-      context.fonts,
-      fontSizeInMm,
-    )
+    const merged = mergeStyles(baseStyle, run.styles, context.styles)
+    const style = resolveStyle(merged, context.fonts, fontSizeInMm)
 
     if (run.kind === "abbr") {
-      const definition = context.abbreviations[run.id]
-      if (!definition) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
-      if (definition.type === "image") {
-        const sizeInMm = toMillimetres(definition.height, fontSizeInMm)
-        const dropInMm = toMillimetres(definition.baseline, fontSizeInMm)
-        tokens.push({
-          kind: "symbol",
-          href: definition.src,
-          sizeInMm,
-          dropInMm,
-          widthInMm: sizeInMm,
-          x: 0,
-        })
-      } else {
-        pushText(definition.value, style)
-      }
+      const src = context.abbreviations[run.id]
+      if (!src) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
+      const cap = capHeightInMm(style.face, style.fontSizeInMm)
+      const sizeInMm = cap * INLINE_IMAGE_CAP_RATIO
+      tokens.push({
+        kind: "symbol",
+        href: src,
+        sizeInMm,
+        dropInMm: (cap * (1 - INLINE_IMAGE_CAP_RATIO)) / 2,
+        widthInMm: sizeInMm,
+        x: 0,
+      })
       continue
     }
 
-    // The badge's text sits at the normal flow position (aligned with body text); the box
-    // bleeds left of it (see emitLine's `bleedLeft`). Only the right padding participates
-    // in flow — as a trailing pad token that also pushes following text.
-    const padding = style.background ? parseEdges(style.background.padding, fontSizeInMm) : null
+    // A margin gap is flow-only: it pushes following text but is not part of any background
+    // box (so the ability-name pill hugs its text while margin.after clears the next word).
+    const gapStyle: ResolvedStyle = { ...style, background: undefined }
+    const marginBefore = toMillimetres(merged.margin?.before, fontSizeInMm)
+    const marginAfter = toMillimetres(merged.margin?.after, fontSizeInMm)
+    if (marginBefore) tokens.push({ kind: "pad", style: gapStyle, widthInMm: marginBefore, x: 0 })
     pushText(run.text, style)
-    if (padding) tokens.push({ kind: "pad", style, widthInMm: padding.right, x: 0 })
+    if (marginAfter) tokens.push({ kind: "pad", style: gapStyle, widthInMm: marginAfter, x: 0 })
   }
 
   return tokens
@@ -198,29 +197,20 @@ function wrap(tokens: Token[], maxWidthInMm: number): Token[][] {
 }
 
 // ── Emitting one positioned line into the draw ───────────────────────────────
-function emitLine(
-  line: Token[],
-  originX: number,
-  baseline: number,
-  lineTop: number,
-  lineHeightInMm: number,
-  draw: CardDraw,
-): void {
+function emitLine(line: Token[], originX: number, baseline: number, draw: CardDraw): void {
   // Backgrounds: contiguous tokens that share a background become one box behind them.
   let segment: { startX: number; endX: number; style: ResolvedStyle } | null = null
   const flushSegment = () => {
     if (!segment) return
     const style = segment.style
     const background = style.background!
-    const padding = parseEdges(background.padding, style.fontSizeInMm)
-    const bleedLeft = toMillimetres(background.bleedLeft, style.fontSizeInMm)
+    const outset = resolveOutset(background.outset, style.fontSizeInMm)
     const cap = capHeightInMm(style.face, style.fontSizeInMm)
-    const hugLine = background.hug === "line"
     draw.backgrounds.push({
-      x: originX + segment.startX - bleedLeft,
-      y: hugLine ? lineTop : baseline - cap - padding.top,
-      width: segment.endX - segment.startX + bleedLeft,
-      height: hugLine ? lineHeightInMm : cap + padding.top + padding.bottom,
+      x: originX + segment.startX - outset.left,
+      y: baseline - cap - outset.top,
+      width: segment.endX - segment.startX + outset.left + outset.right,
+      height: cap + outset.top + outset.bottom,
       fill: background.fill,
       corners: resolveCorners(background.corners, style.fontSizeInMm),
     })
@@ -266,16 +256,27 @@ function emitLine(
   }
 }
 
-function resolveCorners(
-  corners:
-    { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string } | undefined,
-  emInMm: number,
-): Corners {
+type CornerLengths =
+  { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string } | undefined
+
+function resolveCorners(corners: CornerLengths, emInMm: number): Corners {
   return {
     topLeft: toMillimetres(corners?.topLeft, emInMm),
     topRight: toMillimetres(corners?.topRight, emInMm),
     bottomRight: toMillimetres(corners?.bottomRight, emInMm),
     bottomLeft: toMillimetres(corners?.bottomLeft, emInMm),
+  }
+}
+
+function resolveOutset(
+  outset: { top?: string; right?: string; bottom?: string; left?: string } | undefined,
+  emInMm: number,
+): { top: number; right: number; bottom: number; left: number } {
+  return {
+    top: toMillimetres(outset?.top, emInMm),
+    right: toMillimetres(outset?.right, emInMm),
+    bottom: toMillimetres(outset?.bottom, emInMm),
+    left: toMillimetres(outset?.left, emInMm),
   }
 }
 
@@ -287,22 +288,21 @@ function layoutLine(
   cardWidthInMm: number,
   draw: CardDraw,
 ): void {
-  const fontSizeInMm = toMillimetres(style.size)
+  const fontSizeInMm = toMillimetres(style.fontSize)
   const tokens = tokenize(text, style, fontSizeInMm, context)
   const totalWidth = placeInline(tokens)
 
   const baseFace = context.fonts.resolve(
-    style.font ?? "",
-    style.weight ?? 400,
-    style.style ?? "normal",
+    style.fontFamily ?? "",
+    style.fontWeight ?? 400,
+    style.fontStyle ?? "normal",
   )
   const originX =
     style.align === "center" ? (cardWidthInMm - totalWidth) / 2 : toMillimetres(style.box?.x)
   const cap = capHeightInMm(baseFace, fontSizeInMm)
   const baseline = toMillimetres(style.box?.y) + cap
-  const lineHeightInMm = fontSizeInMm * (style.lineHeight ?? 1)
 
-  emitLine(tokens, originX, baseline, baseline - cap, lineHeightInMm, draw)
+  emitLine(tokens, originX, baseline, draw)
 }
 
 function layoutBlock(
@@ -317,9 +317,9 @@ function layoutBlock(
   const boxWidth = toMillimetres(style.box?.w)
   const boxHeight = toMillimetres(style.box?.h)
   const baseFace = context.fonts.resolve(
-    style.font ?? "",
-    style.weight ?? 400,
-    style.style ?? "normal",
+    style.fontFamily ?? "",
+    style.fontWeight ?? 400,
+    style.fontStyle ?? "normal",
   )
 
   const lineStep = fontSizeInMm * (style.lineHeight ?? 1)
@@ -335,7 +335,7 @@ function layoutBlock(
 
   for (const lines of wrappedParagraphs) {
     for (const line of lines) {
-      emitLine(line, boxX, cursorY + cap, cursorY, lineStep, draw)
+      emitLine(line, boxX, cursorY + cap, draw)
       cursorY += lineStep
     }
     cursorY += paragraphGap
@@ -405,15 +405,14 @@ export function composeCard(card: Card, presentation: Presentation, fonts: FontB
     }
 
     // text
-    if (style.kind === "block") {
+    if (style.mode === "block") {
       const paragraphs = (
         Array.isArray(overlay.content) ? overlay.content : [overlay.content]
       ).filter(
         (paragraph): paragraph is string => typeof paragraph === "string" && paragraph.length > 0,
       )
       if (paragraphs.length) {
-        const fontSizeInMm = toMillimetres(overlay.size ?? style.size)
-        layoutBlock(paragraphs, style, fontSizeInMm, context, draw)
+        layoutBlock(paragraphs, style, toMillimetres(style.fontSize), context, draw)
       }
     } else {
       const text = Array.isArray(overlay.content) ? overlay.content.join(" ") : overlay.content

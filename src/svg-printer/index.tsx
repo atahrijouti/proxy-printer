@@ -10,7 +10,7 @@ import { composeCard, type CardDraw } from "./layout"
 import { exportCardsToPdf } from "./pdf"
 import type { Card, DB } from "./types"
 
-const DEFAULT_URL = "http://localhost:8787/db-sv-svg-print.json"
+const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
 
 const CardSvg: Component<{ draw: CardDraw; index: number }> = (props) => {
   const clipId = () => `card-clip-${props.index}`
