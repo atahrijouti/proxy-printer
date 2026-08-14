@@ -62,7 +62,7 @@ export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Layou
 function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout) {
   const fontSizeMm = toMillimetres(composed.style.fontSize)
   const spans = composed.content[0] ?? []
-  const measured = buildParagraph(
+  const shaped = buildParagraph(
     ctx,
     composed.style,
     spans,
@@ -70,13 +70,13 @@ function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout
     UNBOUNDED_WIDTH_PX,
     ctx.ck.TextAlign.Left,
   )
-  const width = measured.paragraph.getMaxIntrinsicWidth()
+  const width = shaped.paragraph.getMaxIntrinsicWidth()
   const x =
     composed.style.align === "center"
       ? (px(CARD_WIDTH_MM, ctx) - width) / 2
       : px(composed.boxXMm, ctx)
-  const y = capTop(ctx, composed.style, px(composed.boxYMm, ctx), fontSizeMm, measured.paragraph)
-  placeParagraph(layout, ctx, measured, x, y, fontSizeMm)
+  const y = capTop(ctx, composed.style, px(composed.boxYMm, ctx), fontSizeMm, shaped.paragraph)
+  placeParagraph(layout, ctx, shaped, x, y, fontSizeMm)
 }
 
 // A block wraps within box.w and shrinks its font-size until it fits box.h (canvas2d parity),
@@ -89,34 +89,37 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
   const baseFontSizeMm = toMillimetres(composed.style.fontSize)
   const minFontSizeMm = baseFontSizeMm * MIN_FONT_RATIO
 
-  const buildAt = (fontSizeMm: number) => {
+  // lay the whole block out at a candidate font-size, measuring its stacked height
+  const tryLayout = (fontSizeMm: number) => {
     const paragraphs = composed.content.map((spans) =>
       buildParagraph(ctx, composed.style, spans, fontSizeMm, wrapWidth, align),
     )
-    const gap = px(toMillimetres(composed.style.paragraphGap, fontSizeMm), ctx)
+    const paragraphGap = px(toMillimetres(composed.style.paragraphGap, fontSizeMm), ctx)
     const height =
-      paragraphs.reduce((sum, p) => sum + p.paragraph.getHeight(), 0) +
-      gap * Math.max(0, paragraphs.length - 1)
-    return { paragraphs, gap, height, fontSizeMm }
+      paragraphs.reduce((sum, shaped) => sum + shaped.paragraph.getHeight(), 0) +
+      paragraphGap * Math.max(0, paragraphs.length - 1)
+    return { paragraphs, paragraphGap, height, fontSizeMm }
   }
 
-  let build = buildAt(baseFontSizeMm)
-  while (build.height > boxHeightPx && build.fontSizeMm > minFontSizeMm) {
-    for (const p of build.paragraphs) p.paragraph.delete()
-    build = buildAt(Math.max(minFontSizeMm, build.fontSizeMm - SHRINK_STEP_MM))
+  // shrink-to-fit: keep shrinking the font-size until the block fits box.h (or hits the floor)
+  let laid = tryLayout(baseFontSizeMm)
+  while (laid.height > boxHeightPx && laid.fontSizeMm > minFontSizeMm) {
+    for (const shaped of laid.paragraphs) shaped.paragraph.delete()
+    laid = tryLayout(Math.max(minFontSizeMm, laid.fontSizeMm - SHRINK_STEP_MM))
   }
 
-  const spare = boxHeightPx - build.height
-  const top =
+  const spareHeight = boxHeightPx - laid.height
+  const blockTop =
     composed.style.valign === "center"
-      ? px(composed.boxYMm, ctx) + Math.max(0, spare / 2)
+      ? px(composed.boxYMm, ctx) + Math.max(0, spareHeight / 2)
       : px(composed.boxYMm, ctx)
-  const cap = capHeightPx(ctx, composed.style, build.fontSizeMm)
-  const firstAscent = build.paragraphs[0]?.paragraph.getLineMetrics()[0]?.ascent ?? 0
-  let y = top - (firstAscent - cap) // box.y is the cap-top of the first line (matches canvas2d)
-  for (const measured of build.paragraphs) {
-    placeParagraph(layout, ctx, measured, boxX, y, build.fontSizeMm)
-    y += measured.paragraph.getHeight() + build.gap
+  const capHeight = capHeightPx(ctx, composed.style, laid.fontSizeMm)
+  const firstLineAscent = laid.paragraphs[0]?.paragraph.getLineMetrics()[0]?.ascent ?? 0
+  // canvaskit puts the first baseline at top + ascent; lift so box.y lands on the cap-top instead
+  let cursorY = blockTop - (firstLineAscent - capHeight)
+  for (const shaped of laid.paragraphs) {
+    placeParagraph(layout, ctx, shaped, boxX, cursorY, laid.fontSizeMm)
+    cursorY += shaped.paragraph.getHeight() + laid.paragraphGap
   }
 }
 
@@ -131,7 +134,7 @@ interface BackgroundRange {
   style: Style
 }
 // a laid-out canvaskit paragraph plus the data needed to place its symbols and backgrounds
-interface MeasuredParagraph {
+interface ShapedParagraph {
   paragraph: Paragraph
   placeholders: (InlineSymbol | null)[] // index-aligned with the paragraph's placeholders
   backgrounds: BackgroundRange[]
@@ -144,7 +147,7 @@ function buildParagraph(
   fontSizeMm: number,
   wrapWidthPx: number,
   align: TextAlign,
-): MeasuredParagraph {
+): ShapedParagraph {
   const paragraphStyle = new ctx.ck.ParagraphStyle({
     textStyle: toTextStyle(ctx, base, fontSizeMm),
     textAlign: align,
@@ -175,8 +178,8 @@ function addSpan(
   if ("symbolSrc" in span) {
     const image = ctx.images.get(span.symbolSrc)
     if (!image) return offset
-    const cap = capHeightPx(ctx, span.style, fontSizeMm)
-    const size = cap * INLINE_IMAGE_CAP_RATIO
+    const capHeight = capHeightPx(ctx, span.style, fontSizeMm)
+    const size = capHeight * INLINE_IMAGE_CAP_RATIO
     builder.addPlaceholder(
       size,
       size,
@@ -184,7 +187,7 @@ function addSpan(
       ctx.ck.TextBaseline.Alphabetic,
       0,
     )
-    placeholders.push({ image, drop: (cap * (1 - INLINE_IMAGE_CAP_RATIO)) / 2 })
+    placeholders.push({ image, drop: (capHeight * (1 - INLINE_IMAGE_CAP_RATIO)) / 2 })
     return offset + 1
   }
 
@@ -204,12 +207,12 @@ function addSpan(
 function addMargin(
   ctx: RenderContext,
   builder: ParagraphBuilder,
-  length: string | undefined,
+  marginLength: string | undefined,
   fontSizeMm: number,
   offset: number,
   placeholders: (InlineSymbol | null)[],
 ): number {
-  const gap = px(toMillimetres(length, fontSizeMm), ctx)
+  const gap = px(toMillimetres(marginLength, fontSizeMm), ctx)
   if (gap <= 0) return offset
   builder.addPlaceholder(
     gap,
@@ -222,36 +225,36 @@ function addMargin(
   return offset + 1
 }
 
-// ── Positioning one measured paragraph and deriving its backgrounds / symbols ──────────
+// ── Positioning one shaped paragraph and deriving its backgrounds / symbols ──────────
 function placeParagraph(
-  into: Layout,
+  layout: Layout,
   ctx: RenderContext,
-  measured: MeasuredParagraph,
+  shaped: ShapedParagraph,
   x: number,
   y: number,
   fontSizeMm: number,
 ) {
-  into.paragraphs.push({ paragraph: measured.paragraph, x, y })
-  into.backgrounds.push(...placeBackgrounds(ctx, measured, x, y, fontSizeMm))
-  into.symbols.push(...placeSymbols(measured, x, y))
+  layout.paragraphs.push({ paragraph: shaped.paragraph, x, y })
+  layout.backgrounds.push(...placeBackgrounds(ctx, shaped, x, y, fontSizeMm))
+  layout.symbols.push(...placeSymbols(shaped, x, y))
 }
 
 function placeBackgrounds(
   ctx: RenderContext,
-  measured: MeasuredParagraph,
+  shaped: ShapedParagraph,
   originX: number,
   originY: number,
   fontSizeMm: number,
 ): PlacedBackground[] {
-  const lines = measured.paragraph.getLineMetrics()
+  const lines = shaped.paragraph.getLineMetrics()
   const placed: PlacedBackground[] = []
-  for (const range of measured.backgrounds) {
+  for (const range of shaped.backgrounds) {
     const background = range.style.background
     if (!background) continue
     const outset = resolveOutset(background.outset, fontSizeMm)
     const radius = px(toMillimetres(background.corners?.bottomRight), ctx)
     const capHeight = capHeightPx(ctx, range.style, fontSizeMm)
-    for (const { rect } of measured.paragraph.getRectsForRange(
+    for (const { rect } of shaped.paragraph.getRectsForRange(
       range.start,
       range.end,
       ctx.ck.RectHeightStyle.Max,
@@ -259,8 +262,8 @@ function placeBackgrounds(
     )) {
       // each rect can be on a different line when a range wraps — pick the line by its own midpoint
       const midY = (rect[1] + rect[3]) / 2
-      const found = lineAt(lines, midY)
-      const baseline = originY + (found?.baseline ?? 0)
+      const line = lineAt(lines, midY)
+      const baseline = originY + (line?.baseline ?? 0)
       placed.push({
         left: originX + rect[0] - px(outset.left, ctx),
         top: baseline - capHeight - px(outset.top, ctx),
@@ -274,22 +277,18 @@ function placeBackgrounds(
   return placed
 }
 
-function placeSymbols(
-  measured: MeasuredParagraph,
-  originX: number,
-  originY: number,
-): PlacedSymbol[] {
-  const lines = measured.paragraph.getLineMetrics()
+function placeSymbols(shaped: ShapedParagraph, originX: number, originY: number): PlacedSymbol[] {
+  const lines = shaped.paragraph.getLineMetrics()
   const placed: PlacedSymbol[] = []
-  measured.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
-    const symbol = measured.placeholders[i]
+  shaped.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
+    const symbol = shaped.placeholders[i]
     if (!symbol) return
     const size = rect[2] - rect[0]
-    const found = lineAt(lines, (rect[1] + rect[3]) / 2)
+    const line = lineAt(lines, (rect[1] + rect[3]) / 2)
     placed.push({
       image: symbol.image,
       x: originX + rect[0],
-      y: originY + (found?.baseline ?? 0) - size - symbol.drop,
+      y: originY + (line?.baseline ?? 0) - size - symbol.drop,
       size,
     })
   })
@@ -331,14 +330,14 @@ const resolveOutset = (
 })
 
 const toFontWeight = (ctx: RenderContext, weight = 400) => {
-  const w = ctx.ck.FontWeight
-  if (weight <= 300) return w.Light
-  if (weight <= 400) return w.Normal
-  if (weight <= 500) return w.Medium
-  if (weight <= 600) return w.SemiBold
-  if (weight <= 700) return w.Bold
-  if (weight <= 800) return w.ExtraBold
-  return w.Black
+  const weights = ctx.ck.FontWeight
+  if (weight <= 300) return weights.Light
+  if (weight <= 400) return weights.Normal
+  if (weight <= 500) return weights.Medium
+  if (weight <= 600) return weights.SemiBold
+  if (weight <= 700) return weights.Bold
+  if (weight <= 800) return weights.ExtraBold
+  return weights.Black
 }
 
 const toTextStyle = (ctx: RenderContext, style: Style, fontSizeMm: number): CkTextStyle =>
