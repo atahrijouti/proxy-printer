@@ -6,7 +6,7 @@ import "./index.css"
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
-import { CanvasMeasurer, drawCard } from "./render"
+import { drawCard } from "./render"
 import { resolvePresentation, type ResolvedPresentation } from "./resolve"
 import { loadFonts, loadImages } from "./resources"
 import type { Card, DB } from "./types"
@@ -19,7 +19,6 @@ const REVOKE_DELAY_MS = 10_000
 interface RenderData {
   db: DB
   images: Map<string, HTMLImageElement>
-  measurer: CanvasMeasurer
 }
 
 function imageUrls(db: DB): string[] {
@@ -38,7 +37,6 @@ function renderCard(
   card: Card,
   presentation: ResolvedPresentation,
   images: Map<string, HTMLImageElement>,
-  measurer: CanvasMeasurer,
   scale: number,
 ): HTMLCanvasElement {
   const width = CARD_WIDTH_MM * scale
@@ -47,7 +45,7 @@ function renderCard(
   offscreen.width = width
   offscreen.height = height
   const ctx = offscreen.getContext("2d")!
-  drawCard(ctx, card, presentation, images, measurer, {
+  drawCard(ctx, card, presentation, images, {
     width,
     height,
     radius: CARD_RADIUS_MM * scale,
@@ -74,7 +72,7 @@ const App: Component = () => {
         setStatus("Loading fonts + images…")
         await loadFonts(db.presentation.fonts)
         const images = await loadImages(imageUrls(db))
-        setRenderData({ db, images, measurer: new CanvasMeasurer(images) })
+        setRenderData({ db, images })
         setStatus("")
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error))
@@ -99,7 +97,7 @@ const App: Component = () => {
     if (!data) return
     const presentation = resolvePresentation(data.db.presentation, PDF_SCALE)
     const urls = cards().map((card) =>
-      renderCard(card, presentation, data.images, data.measurer, PDF_SCALE).toDataURL("image/png"),
+      renderCard(card, presentation, data.images, PDF_SCALE).toDataURL("image/png"),
     )
     const blob = await buildPdf(urls)
     const href = URL.createObjectURL(blob)
@@ -153,11 +151,7 @@ const App: Component = () => {
                 canvas.height = CARD_HEIGHT_MM * SCALE
                 canvas
                   .getContext("2d")!
-                  .drawImage(
-                    renderCard(card, presentation, data.images, data.measurer, SCALE),
-                    0,
-                    0,
-                  )
+                  .drawImage(renderCard(card, presentation, data.images, SCALE), 0, 0)
               })
               return <canvas ref={canvas} class="card" />
             }}

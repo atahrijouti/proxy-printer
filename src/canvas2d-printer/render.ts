@@ -1,54 +1,13 @@
-import {
-  layout,
-  type Measurer,
-  type PlacedImage,
-  type PlacedText,
-  type BackgroundBox,
-} from "./flow"
-import type { Card, Overlay, ResolvedTextStyle } from "./types"
+import { Flow, fontString, type PlacedBackground, type PlacedImage, type PlacedText } from "./flow"
+import { composeText } from "./compose"
 import type { ResolvedPresentation } from "./resolve"
-
-// a box edge for line-mode text: no wrapping, no height limit
-const UNBOUNDED = Infinity
-// shrink-to-fit will not go below this fraction of the style's base size
-const MIN_SIZE_RATIO = 0.6
-// only used when the browser reports no font metrics; fractions of the font size
-const FALLBACK_CAP_RATIO = 0.7
-const FALLBACK_ASCENT_RATIO = 0.9
-const FALLBACK_DESCENT_RATIO = 0.25
+import type { Card, Overlay } from "./types"
 
 type Ctx = CanvasRenderingContext2D
 type Images = Map<string, HTMLImageElement>
 
-const fontString = (style: ResolvedTextStyle, sizePx: number) =>
-  `${style.fontStyle === "italic" ? "italic " : ""}${style.fontWeight ?? 400} ${sizePx}px ${JSON.stringify(style.fontFamily ?? "sans-serif")}`
-
-export class CanvasMeasurer implements Measurer {
-  private ctx: Ctx
-  private images: Images
-  capHeight = 0
-  ascent = 0
-  descent = 0
-  constructor(images: Images) {
-    this.images = images
-    this.ctx = document.createElement("canvas").getContext("2d")!
-  }
-  setFont(style: ResolvedTextStyle, sizePx: number) {
-    this.ctx.font = fontString(style, sizePx)
-    const capMetrics = this.ctx.measureText("H")
-    const lineMetrics = this.ctx.measureText("Hg")
-    this.capHeight = capMetrics.actualBoundingBoxAscent || sizePx * FALLBACK_CAP_RATIO
-    this.ascent = lineMetrics.fontBoundingBoxAscent || sizePx * FALLBACK_ASCENT_RATIO
-    this.descent = lineMetrics.fontBoundingBoxDescent || sizePx * FALLBACK_DESCENT_RATIO
-  }
-  measureWidth(text: string) {
-    return this.ctx.measureText(text).width
-  }
-  imageAspect(src: string) {
-    const image = this.images.get(src)
-    return image ? image.naturalWidth / image.naturalHeight : 1
-  }
-}
+// one text-layout engine for the app; it holds only an internal measuring canvas and is reused
+const flow = new Flow()
 
 export interface CardFrame {
   width: number
@@ -59,21 +18,25 @@ export interface CardFrame {
 interface DrawEnv {
   presentation: ResolvedPresentation
   images: Images
-  measurer: CanvasMeasurer
   cardWidth: number
   cardHeight: number
 }
 
-function drawBackground(ctx: Ctx, box: BackgroundBox, originX: number, originY: number) {
-  const corners = box.background.corners ?? {}
+function imageAspect(images: Images, src: string): number {
+  const image = images.get(src)
+  return image ? image.naturalWidth / image.naturalHeight : 1
+}
+
+function drawBackground(ctx: Ctx, bg: PlacedBackground, originX: number, originY: number) {
+  const corners = bg.background.corners ?? {}
   ctx.beginPath()
-  ctx.roundRect(originX + box.x, originY + box.y, box.w, box.h, [
+  ctx.roundRect(originX + bg.x, originY + bg.y, bg.width, bg.height, [
     corners.topLeft ?? 0,
     corners.topRight ?? 0,
     corners.bottomRight ?? 0,
     corners.bottomLeft ?? 0,
   ])
-  ctx.fillStyle = box.background.fill
+  ctx.fillStyle = bg.background.fill
   ctx.fill()
 }
 
@@ -86,7 +49,7 @@ function drawItem(
 ) {
   switch (item.type) {
     case "text":
-      ctx.font = fontString(item.style, item.sizePx)
+      ctx.font = fontString(item.style, item.fontSize)
       ctx.fillStyle = item.style.color ?? "#000000"
       ctx.globalAlpha = item.style.opacity ?? 1
       ctx.fillText(item.text, originX + item.x, originY + item.baseline)
@@ -94,7 +57,7 @@ function drawItem(
       return
     case "image": {
       const image = images.get(item.src)
-      if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.w, item.h)
+      if (image) ctx.drawImage(image, originX + item.x, originY + item.y, item.width, item.height)
       return
     }
     default: {
@@ -105,43 +68,19 @@ function drawItem(
 }
 
 function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, env: DrawEnv) {
-  const style = env.presentation.styles[overlay.style]
-  if (!style) throw new Error(`unknown style: "${overlay.style}"`)
   const paragraphs = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
     (p) => p.length > 0,
   )
-  const isBlock = style.mode === "block"
-  const baseSizePx = style.fontSize ?? env.presentation.defaultFontSize
-
-  const laidOut = layout(
-    {
-      paragraphs,
-      baseStyle: style,
-      baseSizePx,
-      minSizePx: baseSizePx * MIN_SIZE_RATIO,
-      boxWidth: isBlock
-        ? (style.box?.w ?? 0)
-        : style.align === "center"
-          ? env.cardWidth
-          : UNBOUNDED,
-      boxHeight: isBlock ? (style.box?.h ?? 0) : UNBOUNDED,
-      lineHeight: style.lineHeight ?? 1,
-      paragraphGap: style.paragraphGap ?? 0,
-      align: style.align ?? "left",
-      valign: style.valign ?? "top",
-    },
-    {
-      styles: env.presentation.styles,
-      abbreviations: env.presentation.abbreviations,
-      measurer: env.measurer,
-    },
+  const { content, box, style, originX, originY } = composeText(
+    overlay.style,
+    paragraphs,
+    env.presentation,
+    (src) => imageAspect(env.images, src),
+    env.cardWidth,
   )
-
-  const originX = isBlock || style.align !== "center" ? (style.box?.x ?? 0) : 0
-  const originY = style.box?.y ?? 0
-
-  for (const box of laidOut.backgrounds) drawBackground(ctx, box, originX, originY)
-  for (const item of laidOut.content) drawItem(ctx, item, originX, originY, env.images)
+  const laid = flow.layout(content, box, style)
+  for (const bg of laid.backgrounds) drawBackground(ctx, bg, originX, originY)
+  for (const item of laid.content) drawItem(ctx, item, originX, originY, env.images)
 }
 
 function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {
@@ -168,13 +107,11 @@ export function drawCard(
   card: Card,
   presentation: ResolvedPresentation,
   images: Images,
-  measurer: CanvasMeasurer,
   frame: CardFrame,
 ) {
   const env: DrawEnv = {
     presentation,
     images,
-    measurer,
     cardWidth: frame.width,
     cardHeight: frame.height,
   }

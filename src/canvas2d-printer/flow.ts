@@ -1,144 +1,231 @@
-import type { ResolvedBackground, ResolvedTextStyle } from "./types"
-import { parseMarkup } from "./markup"
+// A standalone Canvas 2D text-layout engine: it measures, wraps, shrinks-to-fit, and places
+// styled spans (text or inline images) inside a box, returning placements for the caller to draw.
+// It knows nothing about our card DB, markup, or style registries — the caller hands it
+// already-structured spans, a box, and the block's style. Block properties are the defaults a
+// span inherits when it leaves them unset.
 
-const SHRINK_STEP_PX = 1
+// ── input ──
 
-export interface Measurer {
-  setFont(style: ResolvedTextStyle, sizePx: number): void
-  measureWidth(text: string): number
-  readonly capHeight: number
-  readonly ascent: number
-  readonly descent: number
-  imageAspect(src: string): number
+export interface SpanStyle {
+  fontFamily?: string
+  fontSize?: number // px; unset → inherits the block's fontSize
+  fontWeight?: number
+  italic?: boolean
+  uppercase?: boolean // Flow applies the transform
+  color?: string
+  opacity?: number
+  background?: Background
+  marginBefore?: number
+  marginAfter?: number
 }
+
+export type Span =
+  | { text: string; style?: SpanStyle }
+  | { image: { src: string; aspect: number }; style?: SpanStyle }
+export type Paragraph = Span[]
+
+export interface Background {
+  fill: string
+  outset?: { top?: number; right?: number; bottom?: number; left?: number }
+  corners?: { topLeft?: number; topRight?: number; bottomRight?: number; bottomLeft?: number }
+}
+
+export interface Box {
+  width: number // Infinity ⇒ never wrap
+  height: number // Infinity ⇒ never shrink
+}
+
+// the block's style: span-inheritable defaults plus block-level layout
+export interface BlockStyle extends SpanStyle {
+  align?: "left" | "center"
+  valign?: "top" | "center"
+  lineHeight?: number
+  paragraphGap?: number
+  minFontSize?: number // shrink floor for the block's fontSize
+}
+
+// ── output: placements the caller draws ──
 
 export interface PlacedText {
   type: "text"
   x: number
   baseline: number
   text: string
-  style: ResolvedTextStyle
-  sizePx: number
+  style: SpanStyle // resolved (block defaults merged in)
+  fontSize: number
 }
 export interface PlacedImage {
   type: "image"
   x: number
   y: number
-  w: number
-  h: number
+  width: number
+  height: number
   src: string
 }
-export interface BackgroundBox {
+export interface PlacedBackground {
   x: number
   y: number
-  w: number
-  h: number
-  background: ResolvedBackground
+  width: number
+  height: number
+  background: Background
 }
 export interface Layout {
-  backgrounds: BackgroundBox[]
+  backgrounds: PlacedBackground[]
   content: (PlacedText | PlacedImage)[]
-  sizePx: number
+  height: number // total height of the laid-out content
 }
 
-// the text being laid out, and everything intrinsic to how it flows
-export interface TextBlock {
-  paragraphs: string[]
-  baseStyle: ResolvedTextStyle
-  baseSizePx: number
-  minSizePx: number
-  boxWidth: number
-  boxHeight: number
-  lineHeight: number
-  paragraphGap: number
-  align: "left" | "center"
-  valign: "top" | "center"
-}
+// ── internals ──
 
-// the shared tools and registries a layout resolves and measures against
-export interface LayoutEnv {
-  styles: Record<string, ResolvedTextStyle>
-  abbreviations: Record<string, string>
-  measurer: Measurer
-}
+const DEFAULT_FONT_SIZE = 16
+const SHRINK_STEP_PX = 1
+const FALLBACK_CAP_RATIO = 0.7
+const INLINE_IMAGE_CAP_RATIO = 1.15 // inline image height as a multiple of cap-height
 
+// a token after inheritance + tokenizing + uppercase, but before measuring (all scale-independent)
 interface Token {
-  nodeId: number
+  spanId: number
   isSpace: boolean
   text?: string
   imageSrc?: string
-  width: number
+  aspect?: number
+  style: SpanStyle
+  fontSize: number
   marginBefore: number
   marginAfter: number
-  style: ResolvedTextStyle
-  background?: ResolvedBackground
 }
-
-type PlacedToken = Token & { offset: number }
+// a Token plus its measured width and cap-height at its fontSize
+interface MeasuredToken extends Token {
+  width: number
+  cap: number
+}
+type PlacedToken = MeasuredToken & { offset: number }
 interface Line {
   tokens: PlacedToken[]
   width: number
+  cap: number
+  fontSize: number
 }
 
-const mergeStyles = (
-  baseStyle: ResolvedTextStyle,
-  names: string[],
-  styles: Record<string, ResolvedTextStyle>,
-): ResolvedTextStyle =>
-  names.reduce((acc, name) => ({ ...acc, ...(styles[name] ?? {}) }), baseStyle)
+export const fontString = (style: SpanStyle, sizePx: number) =>
+  `${style.italic ? "italic " : ""}${style.fontWeight ?? 400} ${sizePx}px ${JSON.stringify(style.fontFamily ?? "sans-serif")}`
 
-function measure(block: TextBlock, env: LayoutEnv, sizePx: number) {
-  const { measurer, styles, abbreviations } = env
-  const { baseStyle } = block
-  measurer.setFont(baseStyle, sizePx)
-  const cap = measurer.capHeight
+export class Flow {
+  private ctx: CanvasRenderingContext2D
+  constructor() {
+    this.ctx = document.createElement("canvas").getContext("2d")!
+  }
 
-  let nodeId = 0
-  const paragraphs = block.paragraphs.map((markup) => {
-    const tokens: Token[] = []
-    for (const node of parseMarkup(markup)) {
-      const style = mergeStyles(baseStyle, node.styles, styles)
-      const marginBefore = style.margin?.before ?? 0
-      const marginAfter = style.margin?.after ?? 0
-      const id = nodeId++
-      measurer.setFont(style, sizePx)
-
-      if (node.type === "abbr") {
-        const src = abbreviations[node.id]
-        tokens.push({
-          nodeId: id,
-          isSpace: false,
-          imageSrc: src,
-          width: cap * measurer.imageAspect(src),
-          marginBefore,
-          marginAfter,
-          style,
-          background: style.background,
-        })
-        continue
-      }
-
-      const text = style.uppercase ? node.text.toUpperCase() : node.text
-      const parts = text.split(/(\s+)/).filter((part) => part !== "")
-      parts.forEach((part, index) => {
-        tokens.push({
-          nodeId: id,
-          isSpace: /^\s+$/.test(part),
-          text: part,
-          width: measurer.measureWidth(part),
-          marginBefore: index === 0 ? marginBefore : 0,
-          marginAfter: index === parts.length - 1 ? marginAfter : 0,
-          style,
-          background: style.background,
-        })
-      })
+  layout(content: Paragraph[], box: Box, style: BlockStyle): Layout {
+    const tokenized = content.map((spans) => tokenize(spans, style))
+    const baseFontSize = style.fontSize ?? DEFAULT_FONT_SIZE
+    const minFontSize = style.minFontSize ?? baseFontSize
+    for (let fontSize = baseFontSize; fontSize > minFontSize; fontSize -= SHRINK_STEP_PX) {
+      const laid = this.tryLayout(tokenized, box, style, fontSize / baseFontSize)
+      if (laid.height <= box.height) return laid
     }
-    return tokens
-  })
-  return { paragraphs, cap }
+    return this.tryLayout(tokenized, box, style, minFontSize / baseFontSize)
+  }
+
+  private tryLayout(tokenized: Token[][], box: Box, style: BlockStyle, scale: number): Layout {
+    const lineHeight = style.lineHeight ?? 1
+    const paragraphGap = style.paragraphGap ?? 0
+
+    const wrapped = tokenized.map((tokens) =>
+      wrap(this.measure(scaleTokens(tokens, scale)), box.width),
+    )
+
+    let height = 0
+    for (const lines of wrapped) for (const line of lines) height += line.fontSize * lineHeight
+    height += Math.max(0, wrapped.length - 1) * paragraphGap
+
+    const backgrounds: PlacedBackground[] = []
+    const placed: (PlacedText | PlacedImage)[] = []
+    let y =
+      style.valign === "center" && Number.isFinite(box.height)
+        ? Math.max(0, (box.height - height) / 2)
+        : 0
+
+    for (const lines of wrapped) {
+      for (const line of lines) {
+        const alignOffset = style.align === "center" ? (box.width - line.width) / 2 : 0
+        const baseline = y + line.cap
+        backgrounds.push(...backgroundsOf(line, alignOffset, baseline))
+        placed.push(...contentOf(line, alignOffset, baseline))
+        y += line.fontSize * lineHeight
+      }
+      y += paragraphGap
+    }
+
+    return { backgrounds, content: placed, height }
+  }
+
+  // the only scale- and canvas-dependent step: width + cap-height at each token's fontSize
+  private measure(tokens: Token[]): MeasuredToken[] {
+    return tokens.map((token) => {
+      this.ctx.font = fontString(token.style, token.fontSize)
+      const cap = this.capHeight(token.fontSize)
+      const width =
+        token.imageSrc !== undefined
+          ? cap * INLINE_IMAGE_CAP_RATIO * (token.aspect ?? 1)
+          : this.ctx.measureText(token.text ?? "").width
+      return { ...token, width, cap }
+    })
+  }
+
+  private capHeight(sizePx: number): number {
+    const capitals = this.ctx.measureText("H")
+    return capitals.actualBoundingBoxAscent || sizePx * FALLBACK_CAP_RATIO
+  }
 }
 
-function wrap(tokens: Token[], maxWidth: number): Line[] {
+// inheritance + tokenizing + uppercase — all scale-independent, so done once per layout
+function tokenize(spans: Paragraph, style: BlockStyle): Token[] {
+  const tokens: Token[] = []
+  let spanId = 0
+  for (const span of spans) {
+    const spanStyle: SpanStyle = { ...style, ...span.style }
+    const id = spanId++
+    const fontSize = spanStyle.fontSize ?? DEFAULT_FONT_SIZE
+    const marginBefore = spanStyle.marginBefore ?? 0
+    const marginAfter = spanStyle.marginAfter ?? 0
+
+    if ("image" in span) {
+      tokens.push({
+        spanId: id,
+        isSpace: false,
+        imageSrc: span.image.src,
+        aspect: span.image.aspect,
+        style: spanStyle,
+        fontSize,
+        marginBefore,
+        marginAfter,
+      })
+      continue
+    }
+
+    const text = spanStyle.uppercase ? span.text.toUpperCase() : span.text
+    const parts = text.split(/(\s+)/).filter((part) => part !== "")
+    parts.forEach((part, index) => {
+      tokens.push({
+        spanId: id,
+        isSpace: /^\s+$/.test(part),
+        text: part,
+        style: spanStyle,
+        fontSize,
+        marginBefore: index === 0 ? marginBefore : 0,
+        marginAfter: index === parts.length - 1 ? marginAfter : 0,
+      })
+    })
+  }
+  return tokens
+}
+
+// apply the shrink scale to the base font-sizes before measuring
+const scaleTokens = (tokens: Token[], scale: number): Token[] =>
+  tokens.map((token) => ({ ...token, fontSize: token.fontSize * scale }))
+
+function wrap(tokens: MeasuredToken[], maxWidth: number): Line[] {
   const lines: Line[] = []
   let pending: PlacedToken[] = []
   let cursor = 0
@@ -148,7 +235,7 @@ function wrap(tokens: Token[], maxWidth: number): Line[] {
       const dropped = pending.pop()!
       cursor -= dropped.marginBefore + dropped.width + dropped.marginAfter
     }
-    if (pending.length) lines.push({ tokens: pending, width: cursor })
+    if (pending.length) lines.push(toLine(pending, cursor))
     pending = []
     cursor = 0
   }
@@ -165,18 +252,25 @@ function wrap(tokens: Token[], maxWidth: number): Line[] {
   return lines
 }
 
-function backgroundsOf(
-  line: Line,
-  alignOffset: number,
-  baseline: number,
-  cap: number,
-): BackgroundBox[] {
-  const backgrounds: BackgroundBox[] = []
+// a line's cap/fontSize are the max over its spans (mixed sizes sit on a shared baseline)
+function toLine(tokens: PlacedToken[], width: number): Line {
+  let cap = 0
+  let fontSize = 0
+  for (const token of tokens) {
+    cap = Math.max(cap, token.cap)
+    fontSize = Math.max(fontSize, token.fontSize)
+  }
+  return { tokens, width, cap, fontSize }
+}
+
+function backgroundsOf(line: Line, alignOffset: number, baseline: number): PlacedBackground[] {
+  const backgrounds: PlacedBackground[] = []
   let segment: {
-    nodeId: number
+    spanId: number
     start: number
     end: number
-    background: ResolvedBackground
+    cap: number
+    background: Background
   } | null = null
 
   const commit = () => {
@@ -188,9 +282,9 @@ function backgroundsOf(
     const left = outset.left ?? 0
     backgrounds.push({
       x: segment.start - left,
-      y: baseline - cap - top,
-      w: segment.end - segment.start + left + right,
-      h: cap + top + bottom,
+      y: baseline - segment.cap - top,
+      width: segment.end - segment.start + left + right,
+      height: segment.cap + top + bottom,
       background: segment.background,
     })
     segment = null
@@ -198,15 +292,17 @@ function backgroundsOf(
 
   for (const token of line.tokens) {
     const start = alignOffset + token.offset
-    if (!token.background) commit()
-    else if (segment && segment.nodeId === token.nodeId) segment.end = start + token.width
+    const background = token.style.background
+    if (!background) commit()
+    else if (segment && segment.spanId === token.spanId) segment.end = start + token.width
     else {
       commit()
       segment = {
-        nodeId: token.nodeId,
+        spanId: token.spanId,
         start,
         end: start + token.width,
-        background: token.background,
+        cap: token.cap,
+        background,
       }
     }
   }
@@ -218,8 +314,6 @@ function contentOf(
   line: Line,
   alignOffset: number,
   baseline: number,
-  cap: number,
-  sizePx: number,
 ): (PlacedText | PlacedImage)[] {
   return line.tokens
     .filter((token) => !token.isSpace)
@@ -228,9 +322,10 @@ function contentOf(
         ? {
             type: "image",
             x: alignOffset + token.offset,
-            y: baseline - cap,
-            w: token.width,
-            h: cap,
+            // centered on the line's cap-box middle (baseline − cap/2)
+            y: baseline - (token.cap * (1 + INLINE_IMAGE_CAP_RATIO)) / 2,
+            width: token.width,
+            height: token.cap * INLINE_IMAGE_CAP_RATIO,
             src: token.imageSrc,
           }
         : {
@@ -239,42 +334,7 @@ function contentOf(
             baseline,
             text: token.text!,
             style: token.style,
-            sizePx,
+            fontSize: token.fontSize,
           },
     )
-}
-
-function tryLayout(block: TextBlock, env: LayoutEnv, sizePx: number): Layout | null {
-  const { paragraphs, cap } = measure(block, env, sizePx)
-  const wrapped = paragraphs.map((tokens) => wrap(tokens, block.boxWidth))
-  const lineStep = sizePx * block.lineHeight
-
-  const lineCount = wrapped.reduce((total, lines) => total + lines.length, 0)
-  const blockHeight = lineCount * lineStep + Math.max(0, wrapped.length - 1) * block.paragraphGap
-  if (blockHeight > block.boxHeight && sizePx > block.minSizePx) return null
-
-  const backgrounds: BackgroundBox[] = []
-  const content: (PlacedText | PlacedImage)[] = []
-  let y = block.valign === "center" ? Math.max(0, (block.boxHeight - blockHeight) / 2) : 0
-
-  for (const lines of wrapped) {
-    for (const line of lines) {
-      const alignOffset = block.align === "center" ? (block.boxWidth - line.width) / 2 : 0
-      const baseline = y + cap
-      backgrounds.push(...backgroundsOf(line, alignOffset, baseline, cap))
-      content.push(...contentOf(line, alignOffset, baseline, cap, sizePx))
-      y += lineStep
-    }
-    y += block.paragraphGap
-  }
-
-  return { backgrounds, content, sizePx }
-}
-
-export function layout(block: TextBlock, env: LayoutEnv): Layout {
-  for (let size = block.baseSizePx; size > block.minSizePx; size -= SHRINK_STEP_PX) {
-    const fitted = tryLayout(block, env, size)
-    if (fitted) return fitted
-  }
-  return tryLayout(block, env, block.minSizePx)!
 }
