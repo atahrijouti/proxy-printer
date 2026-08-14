@@ -157,8 +157,8 @@ export class Flow {
       for (const line of lines) {
         const alignOffset = style.align === "center" ? (box.width - line.width) / 2 : 0
         const baseline = y + line.cap
-        backgrounds.push(...backgroundsOf(line, alignOffset, baseline))
-        placed.push(...contentOf(line, alignOffset, baseline))
+        backgrounds.push(...placeBackgrounds(line, alignOffset, baseline))
+        placed.push(...placeContent(line, alignOffset, baseline))
         y += line.fontSize * lineHeight
       }
       y += paragraphGap
@@ -276,7 +276,7 @@ function toLine(tokens: PlacedToken[], width: number): Line {
   return { tokens, width, cap, fontSize }
 }
 
-function backgroundsOf(line: Line, alignOffset: number, baseline: number): PlacedBackground[] {
+function placeBackgrounds(line: Line, alignOffset: number, baseline: number): PlacedBackground[] {
   const backgrounds: PlacedBackground[] = []
   let segment: {
     spanId: number
@@ -323,7 +323,7 @@ function backgroundsOf(line: Line, alignOffset: number, baseline: number): Place
   return backgrounds
 }
 
-function contentOf(
+function placeContent(
   line: Line,
   alignOffset: number,
   baseline: number,
