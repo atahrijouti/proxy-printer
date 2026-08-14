@@ -14,6 +14,7 @@ export interface SpanStyle {
   uppercase?: boolean // Flow applies the transform
   color?: string
   opacity?: number
+  letterSpacing?: number // px, added between glyphs
   background?: Background
   marginBefore?: number
   marginAfter?: number
@@ -164,6 +165,7 @@ export class Flow {
   private measure(tokens: Token[]): MeasuredToken[] {
     return tokens.map((token) => {
       this.ctx.font = fontString(token.style, token.fontSize)
+      this.ctx.letterSpacing = `${token.style.letterSpacing ?? 0}px`
       const cap = this.capHeight(token.fontSize)
       const width =
         token.imageSrc !== undefined

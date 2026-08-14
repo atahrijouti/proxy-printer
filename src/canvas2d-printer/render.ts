@@ -50,6 +50,7 @@ function drawItem(
   switch (item.type) {
     case "text":
       ctx.font = fontString(item.style, item.fontSize)
+      ctx.letterSpacing = `${item.style.letterSpacing ?? 0}px`
       ctx.fillStyle = item.style.color ?? "#000000"
       ctx.globalAlpha = item.style.opacity ?? 1
       ctx.fillText(item.text, originX + item.x, originY + item.baseline)

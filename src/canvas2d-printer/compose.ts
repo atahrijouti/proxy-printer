@@ -84,6 +84,7 @@ function toSpanStyle(s: ResolvedTextStyle): SpanStyle {
   if (s.uppercase !== undefined) style.uppercase = s.uppercase
   if (s.color !== undefined) style.color = s.color
   if (s.opacity !== undefined) style.opacity = s.opacity
+  if (s.letterSpacing !== undefined) style.letterSpacing = s.letterSpacing
   if (s.background !== undefined) style.background = s.background
   if (s.margin?.before !== undefined) style.marginBefore = s.margin.before
   if (s.margin?.after !== undefined) style.marginAfter = s.margin.after
