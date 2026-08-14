@@ -56,11 +56,19 @@ export function composeText(
     return spans
   })
 
-  const box: Box = {
-    width: isBlock ? (base.box?.w ?? 0) : base.align === "center" ? cardWidth : UNBOUNDED,
-    height: isBlock ? (base.box?.h ?? 0) : UNBOUNDED,
+  let box: Box
+  let originX: number
+  if (isBlock) {
+    const b = base.box
+    if (!b || b.w === undefined || b.h === undefined) {
+      throw new Error(`block style "${styleName}" requires box.w and box.h`)
+    }
+    box = { width: b.w, height: b.h }
+    originX = b.x ?? 0
+  } else {
+    box = { width: base.align === "center" ? cardWidth : UNBOUNDED, height: UNBOUNDED }
+    originX = base.align === "center" ? 0 : (base.box?.x ?? 0)
   }
-  const originX = isBlock || base.align !== "center" ? (base.box?.x ?? 0) : 0
   const originY = base.box?.y ?? 0
 
   return { content, box, style, originX, originY }
