@@ -118,7 +118,9 @@ export const fontString = (style: SpanStyle, sizePx: number) =>
 export class Flow {
   private ctx: CanvasRenderingContext2D
   constructor() {
-    this.ctx = document.createElement("canvas").getContext("2d")!
+    const ctx = document.createElement("canvas").getContext("2d")
+    if (!ctx) throw new Error("2d canvas context unavailable")
+    this.ctx = ctx
   }
 
   layout(content: Paragraph[], box: Box, style: BlockStyle): Layout {
@@ -239,9 +241,12 @@ function wrap(tokens: MeasuredToken[], maxWidth: number): Line[] {
   let cursor = 0
 
   const commit = () => {
-    while (pending.length && pending[pending.length - 1].isSpace) {
-      const dropped = pending.pop()!
-      cursor -= dropped.marginBefore + dropped.width + dropped.marginAfter
+    // drop trailing spaces, reversing each one's contribution to the cursor
+    while (pending.length) {
+      const last = pending[pending.length - 1]
+      if (!last.isSpace) break
+      pending.pop()
+      cursor -= last.marginBefore + last.width + last.marginAfter
     }
     if (pending.length) lines.push(toLine(pending, cursor))
     pending = []

@@ -44,7 +44,8 @@ function renderCard(
   const offscreen = document.createElement("canvas")
   offscreen.width = width
   offscreen.height = height
-  const ctx = offscreen.getContext("2d")!
+  const ctx = offscreen.getContext("2d")
+  if (!ctx) throw new Error("2d canvas context unavailable")
   drawCard(ctx, card, presentation, images, {
     width,
     height,
@@ -149,9 +150,9 @@ const App: Component = () => {
                 if (!data || !presentation) return
                 canvas.width = CARD_WIDTH_MM * SCALE
                 canvas.height = CARD_HEIGHT_MM * SCALE
-                canvas
-                  .getContext("2d")!
-                  .drawImage(renderCard(card, presentation, data.images, SCALE), 0, 0)
+                const ctx = canvas.getContext("2d")
+                if (!ctx) return
+                ctx.drawImage(renderCard(card, presentation, data.images, SCALE), 0, 0)
               })
               return <canvas ref={canvas} class="card" />
             }}
@@ -163,9 +164,8 @@ const App: Component = () => {
 }
 
 const root = document.getElementById("root")
-
-if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
+if (!(root instanceof HTMLElement)) {
   throw new Error("Root element not found in canvas2d-print.html")
 }
 
-render(() => <App />, root!)
+render(() => <App />, root)
