@@ -2,13 +2,21 @@ import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import * as fontkit from "fontkit"
-import type { FontFace } from "./types"
+import type { FontFace, Style } from "./types"
 
 export interface Engine {
   ck: CanvasKit
   fonts: TypefaceFontProvider
   images: Map<string, Image>
   capRatios: Map<string, number>
+}
+
+// The engine plus the presentation it draws with, at a fixed device scale (px per mm).
+// compose.ts stays engine-agnostic; layout.ts and render.ts consume this.
+export interface RenderContext extends Engine {
+  styles: Record<string, Style>
+  abbreviations: Record<string, string>
+  scale: number
 }
 
 let initialized: Promise<CanvasKit> | null = null

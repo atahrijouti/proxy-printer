@@ -3,10 +3,10 @@ import { render } from "solid-js/web"
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 
 import "./index.css"
-import { loadEngine } from "./engine"
+import { loadEngine, type RenderContext } from "./engine"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
-import { cardLayers, type RenderContext } from "./render"
+import { cardLayers } from "./render"
 import type { DB } from "./types"
 
 const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"

@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js"
-import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./render"
+import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import type { Layer } from "./render"
 
 const MM_TO_PT = 72 / 25.4
