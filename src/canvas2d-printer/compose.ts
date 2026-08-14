@@ -47,6 +47,7 @@ export function composeText(
       const style = toSpanStyle(mergeStyleNames(node.styles, presentation.styles))
       if (node.type === "abbr") {
         const src = presentation.abbreviations[node.id]
+        if (!src) console.warn(`unknown abbreviation: "${node.id}"`)
         spans.push({ image: { src, aspect: imageAspect(src) }, style })
       } else {
         spans.push({ text: node.text, style })
@@ -71,7 +72,11 @@ function mergeStyleNames(
   names: string[],
   styles: Record<string, ResolvedTextStyle>,
 ): ResolvedTextStyle {
-  return names.reduce<ResolvedTextStyle>((acc, name) => ({ ...acc, ...(styles[name] ?? {}) }), {})
+  return names.reduce<ResolvedTextStyle>((acc, name) => {
+    const style = styles[name]
+    if (!style) console.warn(`unknown style: "${name}"`)
+    return { ...acc, ...style }
+  }, {})
 }
 
 // map our resolved style vocabulary to Flow's, preserving "unset" as undefined so inheritance works
