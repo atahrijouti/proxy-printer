@@ -79,9 +79,9 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
     (src) => imageAspect(env.images, src),
     env.cardWidth,
   )
-  const laid = flow.layout(content, box, style)
-  for (const bg of laid.backgrounds) drawBackground(ctx, bg, originX, originY)
-  for (const item of laid.content) drawItem(ctx, item, originX, originY, env.images)
+  const layout = flow.layout(content, box, style)
+  for (const bg of layout.backgrounds) drawBackground(ctx, bg, originX, originY)
+  for (const item of layout.content) drawItem(ctx, item, originX, originY, env.images)
 }
 
 function drawOverlay(ctx: Ctx, overlay: Overlay, env: DrawEnv) {

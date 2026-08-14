@@ -11,7 +11,7 @@ import type { ResolvedTextStyle } from "./types"
 const MIN_FONT_RATIO = 0.6
 const UNBOUNDED = Infinity
 
-export interface Composed {
+export interface ComposedText {
   content: Paragraph[]
   box: Box
   style: BlockStyle
@@ -25,7 +25,7 @@ export function composeText(
   presentation: ResolvedPresentation,
   imageAspect: (src: string) => number,
   cardWidth: number,
-): Composed {
+): ComposedText {
   const base = presentation.styles[styleName]
   if (!base) throw new Error(`unknown style: "${styleName}"`)
   const isBlock = base.mode === "block"

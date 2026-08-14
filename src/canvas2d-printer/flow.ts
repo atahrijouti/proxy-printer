@@ -147,7 +147,7 @@ export class Flow {
     height += Math.max(0, wrapped.length - 1) * paragraphGap
 
     const backgrounds: PlacedBackground[] = []
-    const placed: (PlacedText | PlacedImage)[] = []
+    const content: (PlacedText | PlacedImage)[] = []
     let y =
       style.valign === "center" && Number.isFinite(box.height)
         ? Math.max(0, (box.height - height) / 2)
@@ -158,13 +158,13 @@ export class Flow {
         const alignOffset = style.align === "center" ? (box.width - line.width) / 2 : 0
         const baseline = y + line.cap
         backgrounds.push(...placeBackgrounds(line, alignOffset, baseline))
-        placed.push(...placeContent(line, alignOffset, baseline))
+        content.push(...placeContent(line, alignOffset, baseline))
         y += line.fontSize * lineHeight
       }
       y += paragraphGap
     }
 
-    return { backgrounds, content: placed, height }
+    return { backgrounds, content, height }
   }
 
   // the only scale- and canvas-dependent step: width + cap-height at each token's fontSize
