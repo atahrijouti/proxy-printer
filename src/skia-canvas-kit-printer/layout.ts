@@ -12,13 +12,16 @@ import type {
 } from "canvaskit-wasm"
 import { CARD_WIDTH_MM } from "./card"
 import type { ComposedText, Span } from "./compose"
-import { FALLBACK_CAP_RATIO, toColor, type RenderContext } from "./engine"
+import {
+  FALLBACK_CAP_RATIO,
+  INLINE_IMAGE_CAP_RATIO,
+  toColor,
+  type RenderContext,
+} from "./engine"
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
 
-// An inline {sym} image is sized to 1.15× the surrounding text's cap height and centred
-// on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
-const INLINE_IMAGE_CAP_RATIO = 1.15
+// (the inline {sym} image is INLINE_IMAGE_CAP_RATIO × cap height, centred on the cap-box middle)
 const UNBOUNDED_WIDTH_PX = 1e6 // an inline (single-line) style never wraps
 const DEFAULT_FONT_FAMILY = "Bogle"
 const MIN_FONT_RATIO = 0.6 // shrink-to-fit floor: block text shrinks to at most 60% (canvas2d parity)
@@ -42,7 +45,8 @@ export interface PlacedImage {
   image: Image
   x: number
   y: number
-  size: number
+  width: number
+  height: number
 }
 export interface Layout {
   backgrounds: PlacedBackground[]
@@ -179,10 +183,11 @@ function addSpan(
     const image = ctx.images.get(span.imageSrc)
     if (!image) return offset
     const capHeight = capHeightPx(ctx, span.style, fontSizeMm)
-    const size = capHeight * INLINE_IMAGE_CAP_RATIO
+    const height = capHeight * INLINE_IMAGE_CAP_RATIO
+    const width = height * (image.width() / image.height())
     builder.addPlaceholder(
-      size,
-      size,
+      width,
+      height,
       ctx.ck.PlaceholderAlignment.Middle,
       ctx.ck.TextBaseline.Alphabetic,
       0,
@@ -283,13 +288,15 @@ function placeImages(shaped: ShapedParagraph, originX: number, originY: number):
   shaped.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
     const inlineImage = shaped.placeholders[i]
     if (!inlineImage) return
-    const size = rect[2] - rect[0]
+    const width = rect[2] - rect[0]
+    const height = rect[3] - rect[1]
     const line = lineAt(lines, (rect[1] + rect[3]) / 2)
     placed.push({
       image: inlineImage.image,
       x: originX + rect[0],
-      y: originY + (line?.baseline ?? 0) - size - inlineImage.drop,
-      size,
+      y: originY + (line?.baseline ?? 0) - height - inlineImage.drop,
+      width,
+      height,
     })
   })
   return placed

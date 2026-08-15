@@ -47,10 +47,16 @@ const App: Component = () => {
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const database = (await response.json()) as DB
         setStatus("Loading engine…")
-        const engine = await loadEngine(database.presentation?.fonts ?? [], symbolUrls(database))
+        const styles = database.presentation?.styles ?? {}
+        const engine = await loadEngine(
+          database.presentation?.fonts ?? [],
+          symbolUrls(database),
+          styles,
+          TEXT_SCALE,
+        )
         setCtx({
           ...engine,
-          styles: database.presentation?.styles ?? {},
+          styles,
           symbols: database.symbols ?? {},
           scale: TEXT_SCALE,
         })

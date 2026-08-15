@@ -4,11 +4,11 @@
 // base art + image overlays stay native URLs, each run of text overlays is one PNG layer,
 // so canvaskit never decodes the card art and the WASM heap stays tiny for any deck size).
 
-import type { Canvas, Image } from "canvaskit-wasm"
+import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
 import { toColor, type RenderContext } from "./engine"
-import { layoutOverlay, type Layout } from "./layout"
+import { layoutOverlay, type Layout, type PlacedImage } from "./layout"
 import type { Card, Overlay } from "./types"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
@@ -77,23 +77,25 @@ function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
     for (const inlineImage of layout.images)
-      drawImageBox(canvas, ctx, inlineImage.image, inlineImage.x, inlineImage.y, inlineImage.size)
+      drawImageBox(canvas, ctx, inlineImage)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
 }
 
-function drawImageBox(
-  canvas: Canvas,
-  ctx: RenderContext,
-  image: Image,
-  x: number,
-  y: number,
-  size: number,
-) {
+function drawImageBox(canvas: Canvas, ctx: RenderContext, placed: PlacedImage) {
+  const { image, x, y, width, height } = placed
   const paint = new ctx.ck.Paint()
   const src = ctx.ck.LTRBRect(0, 0, image.width(), image.height())
-  canvas.drawImageRect(image, src, ctx.ck.LTRBRect(x, y, x + size, y + size), paint)
+  // symbols are rasterized for the largest style, so smaller ones minify — nearest would alias
+  canvas.drawImageRectOptions(
+    image,
+    src,
+    ctx.ck.LTRBRect(x, y, x + width, y + height),
+    ctx.ck.FilterMode.Linear,
+    ctx.ck.MipmapMode.None,
+    paint,
+  )
   paint.delete()
 }
 
