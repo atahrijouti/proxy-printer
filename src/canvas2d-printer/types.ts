@@ -1,8 +1,8 @@
 // Types for the canvas2d printer: the DB schema and the inline content model it embeds.
 //
-// A text overlay's `content` is `{t <style> …}` / `{abbr <name>}` markup (a string, or a string[]
+// A text overlay's `content` is `{t <style> …}` / `{sym <name>}` markup (a string, or a string[]
 // of paragraphs). `compose.ts` parses it (via `parseMarkup`), resolves style-names against `styles`
-// and abbreviations against `abbreviations`, and hands structured spans to the `flow.ts` layout
+// and symbol-names against `symbols`, and hands structured spans to the `flow.ts` layout
 // engine — see those files for the pipeline and the layout rules.
 
 // a measurement with a unit, resolved to device px by lengthToPx
@@ -10,7 +10,7 @@ export type Length = string // "3.5mm" | "6px" | "2pt"
 export type StyleName = string // key of a style in the presentation's styles registry
 
 // Length-bearing types are parameterized by how a length is represented: `Length` (mm/px/pt
-// strings) while authored, `number` (device px) after `resolvePresentation` scales them.
+// strings) while authored, `number` (device px) after `resolveDb` scales them.
 export interface Background<L = Length> {
   fill: string
   outset?: { top?: L; right?: L; bottom?: L; left?: L }
@@ -63,11 +63,15 @@ export interface FontSpec {
   src: string
 }
 
+// how the DB's text looks: the faces to load and the named styles that reference them
 export interface Presentation {
   fonts: FontSpec[]
   styles: Record<string, Style>
-  abbreviations: Record<string, string>
 }
+
+// content, not presentation: `{sym NAME}` → the URL of an image substituted inline into text.
+// This registry exists for that one purpose — it is never drawn as an overlay of its own.
+export type Symbols = Record<string, string>
 
 export interface Card {
   id: string
@@ -78,6 +82,7 @@ export interface Card {
 export interface DB {
   name?: string
   cardBack?: string
-  presentation: Presentation
+  presentation?: Presentation
+  symbols?: Symbols
   cards: Card[]
 }

@@ -10,8 +10,10 @@ export interface Style {
   highlight?: Args
 }
 
-export type Abbreviation =
-  { type: "image"; src: string; height: string; baseline: string } | { type: "text"; value: string }
+// Content, not presentation: `{sym NAME}` → the URL of an image substituted inline into
+// text. This registry exists for that one purpose — it is never drawn as an overlay of
+// its own, which is why it sits beside `presentation` rather than inside it.
+export type Symbols = Record<string, string>
 
 export type Overlay =
   | { type: "image"; src: string }
@@ -27,12 +29,12 @@ export interface Card {
 export interface Presentation {
   fonts: string[]
   styles: Record<string, Style>
-  abbreviations: Record<string, Abbreviation>
 }
 
 export interface DB {
   name?: string
   cardBack?: string
-  presentation: Presentation
+  presentation?: Presentation
+  symbols?: Symbols
   cards: Card[]
 }

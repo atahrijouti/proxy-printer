@@ -33,7 +33,11 @@ export function mergeStyles(
 
 export function resolveStyle(style: Style, fonts: FontBook, fontSizeInMm: number): ResolvedStyle {
   return {
-    face: fonts.resolve(style.fontFamily ?? "", style.fontWeight ?? 400, style.fontStyle ?? "normal"),
+    face: fonts.resolve(
+      style.fontFamily ?? "",
+      style.fontWeight ?? 400,
+      style.fontStyle ?? "normal",
+    ),
     fontSizeInMm,
     color: style.color ?? "#000000",
     opacity: style.opacity,

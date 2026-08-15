@@ -4,13 +4,13 @@ export interface TextRun {
   styles: string[]
 }
 
-export interface AbbrRun {
-  kind: "abbr"
+export interface SymbolRun {
+  kind: "symbol"
   id: string
   styles: string[]
 }
 
-export type Run = TextRun | AbbrRun
+export type Run = TextRun | SymbolRun
 
 function matchingBrace(text: string, open: number): number {
   let depth = 0
@@ -63,9 +63,9 @@ export function parseMarkup(input: string): Run[] {
           i = close
           continue
         }
-        if (fn === "abbr") {
+        if (fn === "sym") {
           flush()
-          runs.push({ kind: "abbr", id: rest.trim(), styles: [...active] })
+          runs.push({ kind: "symbol", id: rest.trim(), styles: [...active] })
           i = close
           continue
         }

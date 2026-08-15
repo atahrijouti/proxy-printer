@@ -133,7 +133,7 @@ const App: Component = () => {
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const db = (await response.json()) as DB
         const fonts = new FontBook()
-        await fonts.load(db.presentation.fonts)
+        await fonts.load(db.presentation?.fonts ?? [])
         setState({ db, fonts })
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : String(loadError))
@@ -159,7 +159,11 @@ const App: Component = () => {
     const out: { card: Card; draw: CardDraw }[] = []
     for (const card of selected()) {
       try {
-        out.push({ card, draw: composeCard(card, loaded.db.presentation, loaded.fonts) })
+        const { presentation, symbols } = loaded.db
+        out.push({
+          card,
+          draw: composeCard(card, presentation?.styles ?? {}, symbols ?? {}, loaded.fonts),
+        })
       } catch (composeError) {
         setError(
           `card "${card.id}": ${composeError instanceof Error ? composeError.message : String(composeError)}`,

@@ -1,11 +1,11 @@
-// Domain glue between our DB/style model and the Flow text-layout library: it parses `{t}`/`{abbr}`
-// markup, resolves style-names and abbreviations against the presentation, maps our resolved styles
-// into Flow spans, and derives the block style + box + draw origin. Everything markup- or
+// Domain glue between our DB/style model and the Flow text-layout library: it parses `{t}`/`{sym}`
+// markup, resolves style-names and symbol-names against the DB's registries, maps our resolved
+// styles into Flow spans, and derives the block style + box + draw origin. Everything markup- or
 // registry-shaped lives here, so Flow itself stays a plain text-layout engine.
 
 import { parseMarkup } from "./markup"
 import type { BlockStyle, Box, Paragraph, Span, SpanStyle } from "./flow"
-import type { ResolvedPresentation } from "./resolve"
+import type { ResolvedDb } from "./resolve"
 import type { ResolvedTextStyle } from "./types"
 
 const MIN_FONT_RATIO = 0.6
@@ -22,14 +22,14 @@ export interface ComposedText {
 export function composeText(
   styleName: string,
   paragraphs: string[],
-  presentation: ResolvedPresentation,
+  db: ResolvedDb,
   imageAspect: (src: string) => number,
   cardWidth: number,
 ): ComposedText {
-  const base = presentation.styles[styleName]
+  const base = db.styles[styleName]
   if (!base) throw new Error(`unknown style: "${styleName}"`)
   const isBlock = base.mode === "block"
-  const fontSize = base.fontSize ?? presentation.defaultFontSize
+  const fontSize = base.fontSize ?? db.defaultFontSize
 
   const blockStyle: BlockStyle = {
     ...toSpanStyle(base),
@@ -44,10 +44,10 @@ export function composeText(
   const content: Paragraph[] = paragraphs.map((markup) => {
     const spans: Span[] = []
     for (const node of parseMarkup(markup)) {
-      const spanStyle = toSpanStyle(mergeStyleNames(node.styles, presentation.styles))
-      if (node.type === "abbr") {
-        const src = presentation.abbreviations[node.id]
-        if (!src) console.warn(`unknown abbreviation: "${node.id}"`)
+      const spanStyle = toSpanStyle(mergeStyleNames(node.styles, db.styles))
+      if (node.type === "symbol") {
+        const src = db.symbols[node.id]
+        if (!src) console.warn(`unknown symbol: "${node.id}"`)
         spans.push({ image: { src, aspect: imageAspect(src) }, style: spanStyle })
       } else {
         spans.push({ text: node.text, style: spanStyle })

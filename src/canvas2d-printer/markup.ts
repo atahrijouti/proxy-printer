@@ -4,13 +4,13 @@ export interface TextNode {
   styles: string[]
 }
 
-export interface AbbrNode {
-  type: "abbr"
+export interface SymbolNode {
+  type: "symbol"
   id: string
   styles: string[]
 }
 
-export type MarkupNode = TextNode | AbbrNode
+export type MarkupNode = TextNode | SymbolNode
 
 function matchingBrace(text: string, open: number): number {
   let depth = 0
@@ -63,9 +63,9 @@ export function parseMarkup(input: string): MarkupNode[] {
           i = close
           continue
         }
-        if (fn === "abbr") {
+        if (fn === "sym") {
           flush()
-          nodes.push({ type: "abbr", id: rest.trim(), styles: [...active] })
+          nodes.push({ type: "symbol", id: rest.trim(), styles: [...active] })
           i = close
           continue
         }

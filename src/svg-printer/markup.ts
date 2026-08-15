@@ -1,6 +1,6 @@
 // Inline markup → flat runs. Grammar (closed set):
 //   {t NAME content}   tagged span; content is markup (nests), NAME picks up a style
-//   {abbr NAME}        substitution; NAME resolves via the abbreviations registry
+//   {sym NAME}         substitution; NAME resolves via the symbols registry
 //   \{ \}              literal braces
 // Everything else is literal text; unknown/unmatched braces are kept literal.
 //
@@ -14,13 +14,13 @@ export interface TextRun {
   styles: string[]
 }
 
-export interface AbbrRun {
-  kind: "abbr"
+export interface SymbolRun {
+  kind: "symbol"
   id: string
   styles: string[]
 }
 
-export type Run = TextRun | AbbrRun
+export type Run = TextRun | SymbolRun
 
 // From a "{" find its matching "}", counting nested braces and honouring "\{" / "\}".
 function matchingBrace(text: string, open: number): number {
@@ -74,9 +74,9 @@ export function parseMarkup(input: string): Run[] {
           i = close
           continue
         }
-        if (fn === "abbr") {
+        if (fn === "sym") {
           flush()
-          runs.push({ kind: "abbr", id: rest.trim(), styles: [...active] })
+          runs.push({ kind: "symbol", id: rest.trim(), styles: [...active] })
           i = close
           continue
         }

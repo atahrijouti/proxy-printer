@@ -23,9 +23,9 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 const TEXT_SCALE = 16 // px per mm for rasterizing text layers; the card art stays native
 const REVOKE_DELAY_MS = 10_000
 
-// canvaskit only draws the {abbr} symbols into text layers; all card art renders as native <img>
+// canvaskit only draws the {sym} symbols into text layers; all card art renders as native <img>
 function symbolUrls(db: DB): string[] {
-  return [...new Set(Object.values(db.presentation.abbreviations))]
+  return [...new Set(Object.values(db.symbols ?? {}))]
 }
 
 const App: Component = () => {
@@ -47,11 +47,11 @@ const App: Component = () => {
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const database = (await response.json()) as DB
         setStatus("Loading engine…")
-        const engine = await loadEngine(database.presentation.fonts, symbolUrls(database))
+        const engine = await loadEngine(database.presentation?.fonts ?? [], symbolUrls(database))
         setCtx({
           ...engine,
-          styles: database.presentation.styles,
-          abbreviations: database.presentation.abbreviations,
+          styles: database.presentation?.styles ?? {},
+          symbols: database.symbols ?? {},
           scale: TEXT_SCALE,
         })
         setDb(database)

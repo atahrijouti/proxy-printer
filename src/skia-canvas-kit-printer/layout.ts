@@ -16,7 +16,7 @@ import { FALLBACK_CAP_RATIO, toColor, type RenderContext } from "./engine"
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
 
-// An inline {abbr} image is sized to 1.15× the surrounding text's cap height and centred
+// An inline {sym} image is sized to 1.15× the surrounding text's cap height and centred
 // on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
 const INLINE_IMAGE_CAP_RATIO = 1.15
 const UNBOUNDED_WIDTH_PX = 1e6 // an inline (single-line) style never wraps

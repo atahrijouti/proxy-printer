@@ -29,9 +29,7 @@ function imageUrls(db: DB): string[] {
     urls.push(card.image)
     for (const overlay of card.overlays ?? []) if (overlay.type === "image") urls.push(overlay.src)
   }
-  for (const abbr of Object.values(db.presentation.abbreviations)) {
-    if (abbr.type === "image") urls.push(abbr.src)
-  }
+  urls.push(...Object.values(db.symbols ?? {}))
   return [...new Set(urls)]
 }
 
@@ -54,7 +52,7 @@ const App: Component = () => {
         const response = await fetch(url)
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const db = (await response.json()) as DB
-        await configureTypst(db.presentation.fonts)
+        await configureTypst(db.presentation?.fonts ?? [])
         setStatus("Mapping images…")
         const paths = await loadImages(imageUrls(db))
         const imagePath: ImagePath = (src) => {
@@ -73,7 +71,12 @@ const App: Component = () => {
     const current = loaded()
     if (!current) return
     const cards = isCardBack() ? cardBacks(current.db) : selectFromDeck(current.db.cards, deck())
-    const doc = composeDocument(cards, current.db.presentation, current.imagePath)
+    const doc = composeDocument(
+      cards,
+      current.db.presentation?.styles ?? {},
+      current.db.symbols ?? {},
+      current.imagePath,
+    )
     setSource(doc)
     setStatus("Compiling…")
     ;(async () => {

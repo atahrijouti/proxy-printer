@@ -1,30 +1,28 @@
-import type { Length, Presentation, ResolvedStyle, Style } from "./types"
+import type { DB, Length, ResolvedStyle, Style, Symbols } from "./types"
 import { lengthToPx } from "./units"
 
 // fallback base size for a text style that omits fontSize (Card Conjurer's Rules default,
 // 59px on a 1500px / 600-dpi card ≈ 2.5mm)
 const DEFAULT_FONT_SIZE: Length = "2.5mm"
 
-// device-px presentation: every authored Length has been scaled to a number
-export interface ResolvedPresentation {
+// the DB's two registries in device px: every authored Length has been scaled to a number
+export interface ResolvedDb {
   styles: Record<string, ResolvedStyle>
-  abbreviations: Record<string, string>
+  symbols: Symbols
   defaultFontSize: number
 }
 
-// scale every length in the presentation to device px once, up front — so the renderer and the
+// scale every length in the DB's styles to device px once, up front — so the renderer and the
 // layout engine deal only in numbers and never need `scale` or a length parser again.
-export function resolvePresentation(
-  presentation: Presentation,
-  scale: number,
-): ResolvedPresentation {
+// Both registries are optional: a DB whose cards carry no overlays needs neither.
+export function resolveDb(db: DB, scale: number): ResolvedDb {
   const styles: Record<string, ResolvedStyle> = {}
-  for (const [name, style] of Object.entries(presentation.styles)) {
+  for (const [name, style] of Object.entries(db.presentation?.styles ?? {})) {
     styles[name] = resolveStyle(style, scale)
   }
   return {
     styles,
-    abbreviations: presentation.abbreviations,
+    symbols: db.symbols ?? {},
     defaultFontSize: lengthToPx(DEFAULT_FONT_SIZE, scale),
   }
 }

@@ -1,6 +1,11 @@
 import { typArgs, typContent } from "./encode"
 import { parseMarkup, type Run } from "./markup"
-import type { Card, Overlay, Presentation, Style } from "./types"
+import type { Card, Overlay, Style, Symbols } from "./types"
+
+// An inline {sym} image is 0.92em tall and dropped 0.17em below the baseline — the same
+// fit the other printers get from 1.15× cap height (the DB carries only the URL).
+const SYMBOL_HEIGHT = "0.92em"
+const SYMBOL_BASELINE = "-0.17em"
 
 const CARD_WIDTH = "63mm"
 const CARD_HEIGHT = "88mm"
@@ -17,7 +22,7 @@ export type ImagePath = (url: string) => string
 
 interface Context {
   styles: Record<string, Style>
-  abbreviations: Presentation["abbreviations"]
+  symbols: Symbols
   imagePath: ImagePath
 }
 
@@ -32,23 +37,18 @@ const styleWrap = (body: string, style: Style): string => {
   return out
 }
 
-const abbrSource = (id: string, ctx: Context): string => {
-  const entry = ctx.abbreviations[id]
-  if (!entry) throw new Error(`unknown abbreviation: {abbr ${id}}`)
-  switch (entry.type) {
-    case "text":
-      return typContent(entry.value)
-    case "image":
-      return call(
-        "box",
-        `baseline: ${entry.baseline}`,
-        imageSource(ctx.imagePath(entry.src), `height: ${entry.height}`),
-      )
-  }
+const symbolSource = (id: string, ctx: Context): string => {
+  const src = ctx.symbols[id]
+  if (!src) throw new Error(`unknown symbol: {sym ${id}}`)
+  return call(
+    "box",
+    `baseline: ${SYMBOL_BASELINE}`,
+    imageSource(ctx.imagePath(src), `height: ${SYMBOL_HEIGHT}`),
+  )
 }
 
 const runSource = (run: Run, ctx: Context): string => {
-  const content = run.kind === "abbr" ? abbrSource(run.id, ctx) : typContent(run.text)
+  const content = run.kind === "symbol" ? symbolSource(run.id, ctx) : typContent(run.text)
   return run.styles.reduceRight((body, name) => styleWrap(body, ctx.styles[name] ?? {}), content)
 }
 
@@ -133,14 +133,11 @@ const chunk = <T>(items: T[], size: number): T[][] => {
 
 export function composeDocument(
   cards: Card[],
-  presentation: Presentation,
+  styles: Record<string, Style>,
+  symbols: Symbols,
   imagePath: ImagePath,
 ): string {
-  const ctx: Context = {
-    styles: presentation.styles,
-    abbreviations: presentation.abbreviations,
-    imagePath,
-  }
+  const ctx: Context = { styles, symbols, imagePath }
   const cells = cards.map((card) => cardCell(card, ctx))
   const pages = chunk(cells, CARDS_PER_PAGE).map(gridPage).join("\n#pagebreak(weak: true)\n")
   const preamble = [

@@ -47,7 +47,7 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
     const canvas = surface.getCanvas()
     canvas.clear(ctx.ck.TRANSPARENT)
     for (const overlay of overlays) {
-      const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.abbreviations))
+      const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.symbols))
       drawLayout(canvas, ctx, layout)
     }
     surface.flush()

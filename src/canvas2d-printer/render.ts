@@ -1,6 +1,6 @@
 import { Flow, fontString, type PlacedBackground, type PlacedImage, type PlacedText } from "./flow"
 import { composeText } from "./compose"
-import type { ResolvedPresentation } from "./resolve"
+import type { ResolvedDb } from "./resolve"
 import type { Card, Overlay } from "./types"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 
@@ -17,24 +17,19 @@ export type Layer =
   | { type: "text"; src: string } // a data URL: a rasterized run of consecutive text overlays
 
 interface DrawEnv {
-  presentation: ResolvedPresentation
+  db: ResolvedDb
   images: Images
   cardWidth: number
 }
 
 // the base art, then each overlay in order — consecutive text overlays merged into one raster layer,
 // so interleaved image overlays keep their z-order
-export function cardLayers(
-  card: Card,
-  presentation: ResolvedPresentation,
-  images: Images,
-  textScale: number,
-): Layer[] {
+export function cardLayers(card: Card, db: ResolvedDb, images: Images, textScale: number): Layer[] {
   const layers: Layer[] = [{ type: "image", src: card.image }]
   let run: Extract<Overlay, { type: "text" }>[] = []
   const flushText = () => {
     if (run.length === 0) return
-    layers.push({ type: "text", src: rasterizeText(run, presentation, images, textScale) })
+    layers.push({ type: "text", src: rasterizeText(run, db, images, textScale) })
     run = []
   }
   for (const overlay of card.overlays ?? []) {
@@ -53,7 +48,7 @@ export function cardLayers(
 // draw a run of text overlays onto one transparent card-sized canvas at textScale → a data URL
 function rasterizeText(
   overlays: Extract<Overlay, { type: "text" }>[],
-  presentation: ResolvedPresentation,
+  db: ResolvedDb,
   images: Images,
   textScale: number,
 ): string {
@@ -62,7 +57,7 @@ function rasterizeText(
   canvas.height = CARD_HEIGHT_MM * textScale
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("2d canvas context unavailable")
-  const env: DrawEnv = { presentation, images, cardWidth: canvas.width }
+  const env: DrawEnv = { db, images, cardWidth: canvas.width }
   for (const overlay of overlays) drawTextOverlay(ctx, overlay, env)
   return canvas.toDataURL("image/png")
 }
@@ -79,7 +74,7 @@ function drawTextOverlay(ctx: Ctx, overlay: Extract<Overlay, { type: "text" }>, 
   const { content, box, style, originX, originY } = composeText(
     overlay.style,
     paragraphs,
-    env.presentation,
+    env.db,
     (src) => imageAspect(env.images, src),
     env.cardWidth,
   )

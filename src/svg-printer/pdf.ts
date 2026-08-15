@@ -42,7 +42,9 @@ const isWoff2 = (bytes: Uint8Array) =>
 // woff2 decoder bundles cleanly, so the PDF path requires an embeddable container.
 function assertEmbeddable(bytes: Uint8Array, family: string): Uint8Array {
   if (isWoff2(bytes)) {
-    throw new Error(`font "${family}" is woff2, which cannot be embedded in the PDF; provide ttf/otf/woff`)
+    throw new Error(
+      `font "${family}" is woff2, which cannot be embedded in the PDF; provide ttf/otf/woff`,
+    )
   }
   return bytes
 }
@@ -97,7 +99,10 @@ export async function exportCardsToPdf(
   fonts: FontBook,
   layout: PageLayout = A4_PORTRAIT,
 ): Promise<Blob> {
-  const pageSize: [number, number] = [layout.pageWidthInMm * MM_TO_PT, layout.pageHeightInMm * MM_TO_PT]
+  const pageSize: [number, number] = [
+    layout.pageWidthInMm * MM_TO_PT,
+    layout.pageHeightInMm * MM_TO_PT,
+  ]
   const doc = new PDFDocument({ size: pageSize, margin: 0, autoFirstPage: false })
 
   const resolve = (family: string, weight: number, style: "normal" | "italic") =>
@@ -156,7 +161,11 @@ function drawCard(
   const pt = (mm: number) => mm * MM_TO_PT
   const drawImage = (href: string, x: number, y: number, width: number, height: number) => {
     const uri = imageUri.get(href)
-    if (uri) doc.image(uri, pt(cardLeftInMm + x), pt(cardTopInMm + y), { width: pt(width), height: pt(height) })
+    if (uri)
+      doc.image(uri, pt(cardLeftInMm + x), pt(cardTopInMm + y), {
+        width: pt(width),
+        height: pt(height),
+      })
   }
 
   for (const art of card.artLayers) drawImage(art.href, art.x, art.y, art.width, art.height)
@@ -174,7 +183,8 @@ function drawCard(
     doc.restore()
   }
 
-  for (const symbol of card.symbols) drawImage(symbol.href, symbol.x, symbol.y, symbol.width, symbol.height)
+  for (const symbol of card.symbols)
+    drawImage(symbol.href, symbol.x, symbol.y, symbol.width, symbol.height)
 
   for (const fragment of card.textFragments) {
     const face = resolve(fragment.fontFamily, fragment.fontWeight, fragment.fontStyle)

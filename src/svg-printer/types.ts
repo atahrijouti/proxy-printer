@@ -1,12 +1,12 @@
-// DB schema for the SVG printer — the unified presentation schema (shared with the
-// canvas2d printer): CSS-named text properties, a style registry, and {abbr} symbols
-// as plain URLs.
+// DB schema for the SVG printer — the unified schema (shared with the canvas2d and
+// skia printers): CSS-named text properties, a style registry, and a {sym} symbol
+// registry of plain URLs.
 //
 // A card is `id` + base `image` + an ordered `overlays` array drawn in painter's order
 // (first element on the base image, each next on top). Each overlay is one typed
 // primitive — image / shape / text — referencing a named style in `presentation.styles`.
 // The renderer is domain-agnostic: it knows the three primitives, named styles, and the
-// {t}/{abbr} inline markup — never game concepts like "keyword" or "trait". The frame
+// {t}/{sym} inline markup — never game concepts like "keyword" or "trait". The frame
 // (card size, corner radius, page, grid) is owned by the printer, not the DB.
 
 export type Length = string // "63mm" | "0.92em" | "6px"
@@ -62,15 +62,21 @@ export interface Card {
   overlays?: Overlay[]
 }
 
+// How the DB's text looks: the faces to load and the named styles that reference them.
 export interface Presentation {
   fonts: FontFaceSource[]
   styles: Record<string, Style>
-  abbreviations: Record<string, string> // {abbr NAME} → inline symbol image URL
 }
+
+// Content, not presentation: `{sym NAME}` → the URL of an image substituted inline into
+// text. This registry exists for that one purpose — it is never drawn as an overlay of
+// its own, which is why it sits beside `presentation` rather than inside it.
+export type Symbols = Record<string, string>
 
 export interface DB {
   name?: string
   cardBack?: string
-  presentation: Presentation
+  presentation?: Presentation
+  symbols?: Symbols
   cards: Card[]
 }

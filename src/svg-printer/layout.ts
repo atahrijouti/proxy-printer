@@ -4,7 +4,7 @@
 //
 // The engine is domain-agnostic: it reads a card's ordered `overlays`, each referencing
 // a named style (inline or block text, an image, or a content-less shape) plus the
-// {t}/{abbr} inline markup. It knows nothing about keywords, traits, or cards.
+// {t}/{sym} inline markup. It knows nothing about keywords, traits, or cards.
 
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./frame"
 import type { FontBook } from "./fonts"
@@ -16,10 +16,10 @@ import {
   resolveStyle,
   type ResolvedStyle,
 } from "./styling"
-import type { Card, Presentation, Style } from "./types"
+import type { Card, Style, Symbols } from "./types"
 import { toMillimetres } from "./units"
 
-// An inline {abbr} symbol is sized to 1.15× the surrounding text's cap height and centred
+// An inline {sym} symbol is sized to 1.15× the surrounding text's cap height and centred
 // on the cap-box middle — matching the canvas2d printer (the DB carries only the URL).
 const INLINE_IMAGE_CAP_RATIO = 1.15
 
@@ -98,7 +98,7 @@ type Token = TextToken | GapToken | SymbolToken
 interface LayoutContext {
   fonts: FontBook
   styles: Record<string, Style>
-  abbreviations: Record<string, string>
+  symbols: Symbols
 }
 
 // ── Tokenizing one paragraph of markup at a given size ───────────────────────
@@ -132,9 +132,9 @@ function tokenize(
     const merged = mergeStyles(baseStyle, run.styles, context.styles)
     const style = resolveStyle(merged, context.fonts, fontSizeInMm)
 
-    if (run.kind === "abbr") {
-      const src = context.abbreviations[run.id]
-      if (!src) throw new Error(`unknown abbreviation: {abbr ${run.id}}`)
+    if (run.kind === "symbol") {
+      const src = context.symbols[run.id]
+      if (!src) throw new Error(`unknown symbol: {sym ${run.id}}`)
       const cap = capHeightInMm(style.face, style.fontSizeInMm)
       const sizeInMm = cap * INLINE_IMAGE_CAP_RATIO
       tokens.push({
@@ -257,7 +257,8 @@ function emitLine(line: Token[], originX: number, baseline: number, draw: CardDr
 }
 
 type CornerLengths =
-  { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string } | undefined
+  | { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string }
+  | undefined
 
 function resolveCorners(corners: CornerLengths, emInMm: number): Corners {
   return {
@@ -358,7 +359,12 @@ function layoutShape(style: Style, draw: CardDraw): void {
 }
 
 // ── Public entry ──────────────────────────────────────────────────────────────
-export function composeCard(card: Card, presentation: Presentation, fonts: FontBook): CardDraw {
+export function composeCard(
+  card: Card,
+  styles: Record<string, Style>,
+  symbols: Symbols,
+  fonts: FontBook,
+): CardDraw {
   const draw: CardDraw = {
     widthInMm: CARD_WIDTH_MM,
     heightInMm: CARD_HEIGHT_MM,
@@ -378,11 +384,7 @@ export function composeCard(card: Card, presentation: Presentation, fonts: FontB
     height: CARD_HEIGHT_MM,
   })
 
-  const context: LayoutContext = {
-    fonts,
-    styles: presentation.styles,
-    abbreviations: presentation.abbreviations,
-  }
+  const context: LayoutContext = { fonts, styles, symbols }
 
   for (const overlay of card.overlays ?? []) {
     if (overlay.type === "image") {
@@ -396,7 +398,7 @@ export function composeCard(card: Card, presentation: Presentation, fonts: FontB
       continue
     }
 
-    const style = presentation.styles[overlay.style]
+    const style = styles[overlay.style]
     if (!style) throw new Error(`unknown style: "${overlay.style}"`)
 
     if (overlay.type === "shape") {

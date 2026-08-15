@@ -30,7 +30,11 @@ export function parseEdges(
   value: string | undefined,
   emInMm = 0,
 ): { top: number; right: number; bottom: number; left: number } {
-  const parts = (value ?? "").trim().split(/\s+/).filter(Boolean).map((p) => toMillimetres(p, emInMm))
+  const parts = (value ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((p) => toMillimetres(p, emInMm))
   const top = parts[0] ?? 0
   const right = parts[1] ?? top
   const bottom = parts[2] ?? top

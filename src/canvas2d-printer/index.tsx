@@ -6,7 +6,7 @@ import "./index.css"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
 import { cardLayers } from "./render"
-import { resolvePresentation } from "./resolve"
+import { resolveDb } from "./resolve"
 import { loadFonts, loadImages } from "./resources"
 import type { DB } from "./types"
 
@@ -29,9 +29,9 @@ interface RenderData {
   images: Map<string, HTMLImageElement>
 }
 
-// only the {abbr} symbols get drawn onto a canvas; base + overlay art render as native <img>
+// only the {sym} symbols get drawn onto a canvas; base + overlay art render as native <img>
 function symbolUrls(db: DB): string[] {
-  return [...new Set(Object.values(db.presentation.abbreviations))]
+  return [...new Set(Object.values(db.symbols ?? {}))]
 }
 
 const App: Component = () => {
@@ -51,7 +51,7 @@ const App: Component = () => {
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const db = (await response.json()) as DB
         setStatus("Loading fonts + symbols…")
-        await loadFonts(db.presentation.fonts)
+        await loadFonts(db.presentation?.fonts ?? [])
         const images = await loadImages(symbolUrls(db))
         setRenderData({ db, images })
         setStatus("")
@@ -67,17 +67,17 @@ const App: Component = () => {
     return isCardBack() ? cardBacks(data.db) : selectFromDeck(data.db.cards, deck())
   }
 
-  // resolve the presentation once at text scale; text layers are scale-fixed and shared by screen + PDF
-  const presentation = createMemo(() => {
+  // resolve the DB's registries once at text scale; text layers are scale-fixed and shared by screen + PDF
+  const resolved = createMemo(() => {
     const data = renderData()
-    return data ? resolvePresentation(data.db.presentation, TEXT_SCALE) : null
+    return data ? resolveDb(data.db, TEXT_SCALE) : null
   })
 
   const deckLayers = createMemo(() => {
     const data = renderData()
-    const pres = presentation()
-    if (!data || !pres) return []
-    return cards().map((card) => cardLayers(card, pres, data.images, TEXT_SCALE))
+    const db = resolved()
+    if (!data || !db) return []
+    return cards().map((card) => cardLayers(card, db, data.images, TEXT_SCALE))
   })
 
   async function downloadPdf() {
