@@ -4,7 +4,6 @@
 // hand-rolled measurer) is the engine. render.ts only draws what this returns.
 
 import type {
-  Image,
   Paragraph,
   ParagraphBuilder,
   TextAlign,
@@ -15,9 +14,10 @@ import type { ComposedText, Span } from "./compose"
 import {
   FALLBACK_CAP_RATIO,
   INLINE_IMAGE_CAP_RATIO,
+  symbolAspect,
   toColor,
   type RenderContext,
-} from "./engine"
+} from "./resources"
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
 
@@ -41,8 +41,9 @@ export interface PlacedBackground {
   radius: number
   fill: string // hex; render turns it into a canvaskit colour
 }
+// the symbol's URL, not its pixels: render.ts rasterizes it at this height (see resources.ts)
 export interface PlacedImage {
-  image: Image
+  src: string
   x: number
   y: number
   width: number
@@ -129,7 +130,7 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
 
 // ── Building a canvaskit paragraph from composed spans ────────────────────────────────
 interface InlineImage {
-  image: Image
+  src: string
   drop: number
 }
 interface BackgroundRange {
@@ -180,11 +181,11 @@ function addSpan(
   backgrounds: BackgroundRange[],
 ): number {
   if ("imageSrc" in span) {
-    const image = ctx.images.get(span.imageSrc)
-    if (!image) return offset
+    const aspect = symbolAspect(ctx, span.imageSrc)
+    if (aspect == null) return offset
     const capHeight = capHeightPx(ctx, span.style, fontSizeMm)
     const height = capHeight * INLINE_IMAGE_CAP_RATIO
-    const width = height * (image.width() / image.height())
+    const width = height * aspect
     builder.addPlaceholder(
       width,
       height,
@@ -192,7 +193,10 @@ function addSpan(
       ctx.ck.TextBaseline.Alphabetic,
       0,
     )
-    placeholders.push({ image, drop: (capHeight * (1 - INLINE_IMAGE_CAP_RATIO)) / 2 })
+    placeholders.push({
+      src: span.imageSrc,
+      drop: (capHeight * (1 - INLINE_IMAGE_CAP_RATIO)) / 2,
+    })
     return offset + 1
   }
 
@@ -292,7 +296,7 @@ function placeImages(shaped: ShapedParagraph, originX: number, originY: number):
     const height = rect[3] - rect[1]
     const line = lineAt(lines, (rect[1] + rect[3]) / 2)
     placed.push({
-      image: inlineImage.image,
+      src: inlineImage.src,
       x: originX + rect[0],
       y: originY + (line?.baseline ?? 0) - height - inlineImage.drop,
       width,

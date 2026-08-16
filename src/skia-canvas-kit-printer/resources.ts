@@ -1,0 +1,188 @@
+// Everything loaded once and drawn with many times: the wasm instances, the typefaces and
+// their metrics, and the symbols. Symbols resolve in two steps — loadResources reads each
+// one far enough for layout to *size* it (an aspect ratio), and render.ts asks for pixels
+// later, once shrink-to-fit has settled the font size — so an SVG is rasterized at the
+// height it is actually drawn at instead of a deck-wide maximum that gets minified.
+// resvg does the SVG parsing and rasterizing, which keeps the whole path off the DOM.
+
+import { initWasm as initResvg, Resvg } from "@resvg/resvg-wasm"
+import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url"
+import CanvasKitInit from "canvaskit-wasm"
+import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
+import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
+import * as fontkit from "fontkit"
+import type { FontFace, Style, Symbols } from "./types"
+
+// fonts handed to resvg for SVGs containing <text>; symbols are normally pure paths
+interface SvgFonts {
+  fontBuffers: Uint8Array[]
+  defaultFontFamily?: string
+}
+
+// A symbol resolved far enough to lay out. Raster formats decode once (skia's codecs cover
+// png/jpeg/webp/gif); a vector one keeps its source bytes and is rasterized on demand.
+type SymbolSource =
+  | { kind: "raster"; aspect: number; image: Image }
+  | { kind: "vector"; aspect: number; svg: Uint8Array }
+
+export interface Resources {
+  ck: CanvasKit
+  fonts: TypefaceFontProvider
+  svgFonts: SvgFonts
+  symbolSources: Map<string, SymbolSource>
+  rasters: Map<string, Image> // `${url}@${heightPx}` → the raster drawn at that height
+  capRatios: Map<string, number>
+}
+
+// The resources plus the DB registries they are drawn with, at a fixed device scale (px
+// per mm). compose.ts stays engine-agnostic; layout.ts and render.ts consume this.
+export interface RenderContext extends Resources {
+  styles: Record<string, Style>
+  symbols: Symbols
+  scale: number
+}
+
+// cap-height as a fraction of font-size when a font's metric is unavailable (canvas2d parity)
+export const FALLBACK_CAP_RATIO = 0.7
+
+// an inline {sym} image is sized to 1.15× the surrounding text's cap height (canvas2d parity)
+export const INLINE_IMAGE_CAP_RATIO = 1.15
+
+// hex "#rrggbb" → a canvaskit colour (alpha from opacity); used by layout (text) and render (backgrounds)
+export const toColor = (ctx: Resources, hex: string, opacity = 1) => {
+  const value = hex.replace("#", "")
+  const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)
+  return ctx.ck.Color(channel(0), channel(2), channel(4), opacity)
+}
+
+let canvasKitReady: Promise<CanvasKit> | null = null
+const canvasKit = () => (canvasKitReady ??= CanvasKitInit({ locateFile: () => wasmUrl }))
+
+// initResvg throws if called twice, so the promise is the guard
+let resvgReady: Promise<void> | null = null
+const resvgWasm = () => (resvgReady ??= initResvg(fetch(resvgWasmUrl)))
+
+async function fetchBytes(url: string): Promise<Uint8Array> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`fetch failed (${response.status}): ${url}`)
+  return new Uint8Array(await response.arrayBuffer())
+}
+
+// resvg resolves width/height/viewBox/preserveAspectRatio itself, so the aspect ratio comes
+// from the renderer that will draw the symbol — no source sniffing, no browser default size.
+async function loadSymbol(ck: CanvasKit, url: string): Promise<SymbolSource> {
+  const bytes = await fetchBytes(url)
+  const native = ck.MakeImageFromEncoded(bytes)
+  if (native) return { kind: "raster", aspect: native.width() / native.height(), image: native }
+
+  try {
+    const parsed = new Resvg(bytes)
+    try {
+      return { kind: "vector", aspect: parsed.width / parsed.height, svg: bytes }
+    } finally {
+      parsed.free()
+    }
+  } catch (cause) {
+    throw new Error(`could not decode symbol: ${url}`, { cause })
+  }
+}
+
+// what layout needs to reserve a placeholder: the shape of the symbol, not its pixels
+export const symbolAspect = (resources: Resources, url: string): number | null =>
+  resources.symbolSources.get(url)?.aspect ?? null
+
+// what render needs: the symbol drawn at the height layout settled on. Cached per (url,
+// height) — the shrink-to-fit loop lands on a handful of sizes across a deck, and the
+// rasters live as long as the resources, exactly as the eagerly-decoded images used to.
+export function symbolImage(
+  resources: Resources,
+  url: string,
+  heightPx: number,
+): Image | null {
+  const source = resources.symbolSources.get(url)
+  if (!source) return null
+  if (source.kind === "raster") return source.image
+
+  const height = Math.max(1, Math.round(heightPx))
+  const key = `${url}@${height}`
+  const cached = resources.rasters.get(key)
+  if (cached) return cached
+
+  const image = rasterize(resources, source.svg, height)
+  resources.rasters.set(key, image)
+  return image
+}
+
+function rasterize(resources: Resources, svg: Uint8Array, heightPx: number): Image {
+  const renderer = new Resvg(svg, {
+    fitTo: { mode: "height", value: heightPx },
+    font: resources.svgFonts,
+  })
+  try {
+    const rendered = renderer.render()
+    try {
+      const image = resources.ck.MakeImage(
+        {
+          width: rendered.width,
+          height: rendered.height,
+          // resvg hands back tiny-skia's pixmap verbatim, and that is premultiplied —
+          // only its PNG encoder demultiplies. Unpremul here would halo the antialiasing.
+          alphaType: resources.ck.AlphaType.Premul,
+          colorType: resources.ck.ColorType.RGBA_8888,
+          colorSpace: resources.ck.ColorSpace.SRGB,
+        },
+        rendered.pixels,
+        4 * rendered.width,
+      )
+      if (!image) throw new Error("could not build an image from resvg's pixels")
+      return image
+    } finally {
+      rendered.free()
+    }
+  } finally {
+    renderer.free()
+  }
+}
+
+function capRatio(bytes: Uint8Array): number {
+  try {
+    const font = fontkit.create(bytes) as { capHeight?: number; unitsPerEm?: number }
+    if (font.capHeight && font.unitsPerEm) return font.capHeight / font.unitsPerEm
+  } catch {
+    /* fall through to a sensible default */
+  }
+  return FALLBACK_CAP_RATIO
+}
+
+export async function loadResources(
+  fonts: FontFace[],
+  symbolUrls: string[],
+): Promise<Resources> {
+  const [ck] = await Promise.all([canvasKit(), resvgWasm()])
+
+  const provider = ck.TypefaceFontProvider.Make()
+  const capRatios = new Map<string, number>()
+  const fontBuffers: Uint8Array[] = []
+  await Promise.all(
+    fonts.map(async (font) => {
+      const bytes = await fetchBytes(font.src)
+      provider.registerFont(bytes, font.fontFamily)
+      fontBuffers.push(bytes)
+      if (!capRatios.has(font.fontFamily)) capRatios.set(font.fontFamily, capRatio(bytes))
+    }),
+  )
+
+  const symbolSources = new Map<string, SymbolSource>()
+  await Promise.all(
+    [...new Set(symbolUrls)].map(async (url) => symbolSources.set(url, await loadSymbol(ck, url))),
+  )
+
+  return {
+    ck,
+    fonts: provider,
+    svgFonts: { fontBuffers, defaultFontFamily: fonts[0]?.fontFamily },
+    symbolSources,
+    rasters: new Map(),
+    capRatios,
+  }
+}

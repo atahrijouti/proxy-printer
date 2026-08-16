@@ -7,7 +7,7 @@
 import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
-import { toColor, type RenderContext } from "./engine"
+import { symbolImage, toColor, type RenderContext } from "./resources"
 import { layoutOverlay, type Layout, type PlacedImage } from "./layout"
 import type { Card, Overlay } from "./types"
 
@@ -76,21 +76,22 @@ function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
-    for (const inlineImage of layout.images)
-      drawImageBox(canvas, ctx, inlineImage)
+    for (const inlineImage of layout.images) drawImageBox(canvas, ctx, inlineImage)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
 }
 
 function drawImageBox(canvas: Canvas, ctx: RenderContext, placed: PlacedImage) {
-  const { image, x, y, width, height } = placed
+  const { src, x, y, width, height } = placed
+  // resvg rasterizes the symbol at this height, so this is a ~1:1 blit; Linear only covers
+  // the sub-pixel remainder between the integer raster and the fractional placeholder box
+  const image = symbolImage(ctx, src, height)
+  if (!image) return
   const paint = new ctx.ck.Paint()
-  const src = ctx.ck.LTRBRect(0, 0, image.width(), image.height())
-  // symbols are rasterized for the largest style, so smaller ones minify — nearest would alias
   canvas.drawImageRectOptions(
     image,
-    src,
+    ctx.ck.LTRBRect(0, 0, image.width(), image.height()),
     ctx.ck.LTRBRect(x, y, x + width, y + height),
     ctx.ck.FilterMode.Linear,
     ctx.ck.MipmapMode.None,

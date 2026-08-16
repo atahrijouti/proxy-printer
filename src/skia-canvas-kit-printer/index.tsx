@@ -3,7 +3,7 @@ import { render } from "solid-js/web"
 import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
 
 import "./index.css"
-import { loadEngine, type RenderContext } from "./engine"
+import { loadResources, type RenderContext } from "./resources"
 import { cardBacks, selectFromDeck } from "./deck"
 import { buildPdf } from "./pdf"
 import { cardLayers } from "./render"
@@ -46,16 +46,14 @@ const App: Component = () => {
         const response = await fetch(url)
         if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
         const database = (await response.json()) as DB
-        setStatus("Loading engine…")
+        setStatus("Loading resources…")
         const styles = database.presentation?.styles ?? {}
-        const engine = await loadEngine(
+        const resources = await loadResources(
           database.presentation?.fonts ?? [],
           symbolUrls(database),
-          styles,
-          TEXT_SCALE,
         )
         setCtx({
-          ...engine,
+          ...resources,
           styles,
           symbols: database.symbols ?? {},
           scale: TEXT_SCALE,
