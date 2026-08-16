@@ -1,6 +1,15 @@
 /* @refresh reload */
 import { render } from "solid-js/web"
-import { createEffect, createMemo, createSignal, For, Show, type Component } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+  type Accessor,
+  type Component,
+} from "solid-js"
 
 import "./index.css"
 import { loadResources, type RenderContext } from "./resources"
@@ -22,10 +31,23 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 1 jasmine - queen of agrabah`
 const TEXT_SCALE = 16 // px per mm for rasterizing text layers; the card art stays native
 const REVOKE_DELAY_MS = 10_000
+const DB_URL_DEBOUNCE_MS = 500
+const DECK_DEBOUNCE_MS = 300
 
 // canvaskit only draws the {sym} symbols into text layers; all card art renders as native <img>
 function symbolUrls(db: DB): string[] {
   return [...new Set(Object.values(db.symbols ?? {}))]
+}
+
+// the input keeps the live signal so typing stays responsive; the expensive work reads this
+function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
+  const [value, setValue] = createSignal(source())
+  createEffect(() => {
+    const next = source()
+    const timer = setTimeout(() => setValue(() => next), delayMs)
+    onCleanup(() => clearTimeout(timer))
+  })
+  return value
 }
 
 const App: Component = () => {
@@ -35,9 +57,11 @@ const App: Component = () => {
   const [ctx, setCtx] = createSignal<RenderContext | null>(null)
   const [db, setDb] = createSignal<DB | null>(null)
   const [status, setStatus] = createSignal("Loading…")
+  const dbUrlSettled = debounced(dbUrl, DB_URL_DEBOUNCE_MS)
+  const deckSettled = debounced(deck, DECK_DEBOUNCE_MS)
 
   createEffect(() => {
-    const url = dbUrl()
+    const url = dbUrlSettled()
     setCtx(null)
     setDb(null)
     setStatus("Loading…")
@@ -69,7 +93,7 @@ const App: Component = () => {
   const cards = () => {
     const database = db()
     if (!database) return []
-    return isCardBack() ? cardBacks(database) : selectFromDeck(database.cards, deck())
+    return isCardBack() ? cardBacks(database) : selectFromDeck(database.cards, deckSettled())
   }
 
   // text layers are rasterized once by canvaskit; the art is native <img> — shared by screen + PDF
