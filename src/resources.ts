@@ -3,7 +3,6 @@ import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url"
 import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
-import * as fontkit from "fontkit"
 import type { FontFace, Style, Symbols } from "./types"
 
 interface SvgFonts {
@@ -122,18 +121,27 @@ function rasterize(resources: Resources, svg: Uint8Array, heightPx: number): Ima
   }
 }
 
-function capRatio(bytes: Uint8Array): number {
+const CAP_PROBE_SIZE = 1000
+
+function capRatio(ck: CanvasKit, bytes: Uint8Array): number {
+  const typeface = ck.Typeface.MakeTypefaceFromData(bytes.buffer as ArrayBuffer)
+  if (!typeface) return FALLBACK_CAP_RATIO
+  const font = new ck.Font(typeface, CAP_PROBE_SIZE)
   try {
-    const font = fontkit.create(bytes) as { capHeight?: number; unitsPerEm?: number }
-    if (font.capHeight && font.unitsPerEm) return font.capHeight / font.unitsPerEm
-  } catch {}
-  return FALLBACK_CAP_RATIO
+    font.setHinting(ck.FontHinting.None)
+    font.setLinearMetrics(true)
+    const glyphs = font.getGlyphIDs("H")
+    if (!glyphs[0]) return FALLBACK_CAP_RATIO
+    const top = font.getGlyphBounds(glyphs)[1]
+    if (!(top < 0)) return FALLBACK_CAP_RATIO
+    return -top / CAP_PROBE_SIZE
+  } finally {
+    font.delete()
+    typeface.delete()
+  }
 }
 
-export async function loadResources(
-  fonts: FontFace[],
-  symbolUrls: string[],
-): Promise<Resources> {
+export async function loadResources(fonts: FontFace[], symbolUrls: string[]): Promise<Resources> {
   const [ck] = await Promise.all([canvasKit(), resvgWasm()])
 
   const provider = ck.TypefaceFontProvider.Make()
@@ -144,7 +152,7 @@ export async function loadResources(
       const bytes = await fetchBytes(font.src)
       provider.registerFont(bytes, font.fontFamily)
       fontBuffers.push(bytes)
-      if (!capRatios.has(font.fontFamily)) capRatios.set(font.fontFamily, capRatio(bytes))
+      if (!capRatios.has(font.fontFamily)) capRatios.set(font.fontFamily, capRatio(ck, bytes))
     }),
   )
 
