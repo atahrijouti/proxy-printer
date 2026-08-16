@@ -9,13 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@myriaddreamin/typst-ts-renderer": "0.7.0",
-    "@myriaddreamin/typst-ts-web-compiler": "0.7.0",
-    "@myriaddreamin/typst.ts": "^0.7.0",
     "@resvg/resvg-wasm": "^2.6.2",
-    "buffer": "^6.0.3",
     "canvaskit-wasm": "0.40.0",
-    "fontkit": "^2.0.4",
     "pdfkit": "^0.19.1",
     "solid-js": "^1.9.14"
   },
