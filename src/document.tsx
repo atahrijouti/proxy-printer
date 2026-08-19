@@ -1,12 +1,7 @@
 import { For, type Component } from "solid-js"
-import type { Layer } from "./render"
+import type { RenderedCard } from "./printer"
 
 export const CARDS_PER_PAGE = 9
-
-export interface RenderedCard {
-  id: string
-  layers: Layer[]
-}
 
 function toPages(cards: RenderedCard[]): RenderedCard[][] {
   const pages: RenderedCard[][] = []

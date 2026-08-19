@@ -8,9 +8,8 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { cardBacks, selectFromDeck } from "./deck"
-import type { RenderedCard } from "./document"
 import { buildPdf } from "./pdf"
-import { cardLayers } from "./render"
+import { cardLayers, type Layer } from "./render"
 import { loadResources, type RenderContext } from "./resources"
 import type { Card, DB } from "./types"
 
@@ -34,6 +33,11 @@ export interface Settings {
   dbUrl: string
   deck: string
   cardBacks: boolean
+}
+
+export interface RenderedCard {
+  id: string
+  layers: Layer[]
 }
 
 interface LoadedDb {
