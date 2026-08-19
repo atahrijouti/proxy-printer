@@ -41,7 +41,7 @@ export interface RenderedCard {
   layers: Layer[]
 }
 
-interface LoadedDb {
+interface Data {
   cards: Card[]
   cardBack?: string
   ctx: RenderContext
@@ -65,10 +65,13 @@ function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
   return value
 }
 
-async function loadDb(url: string): Promise<LoadedDb> {
+async function fetchDb(url: string): Promise<DB> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
-  const db = (await response.json()) as DB
+  return (await response.json()) as DB
+}
+
+async function prepareData(db: DB): Promise<Data> {
   const resources = await loadResources(db.presentation?.fonts ?? [], symbolUrls(db))
   return {
     cards: db.cards,
@@ -94,35 +97,33 @@ export function createPrinter() {
 
   const urlSettled = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
   const deckSettled = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
-  const [loaded] = createResource(urlSettled, loadDb)
+  const [resource] = createResource(urlSettled, async (url) => prepareData(await fetchDb(url)))
 
-  const resolved = (): LoadedDb | undefined => (loaded.state === "ready" ? loaded() : undefined)
+  const resourceData = (): Data | undefined => (resource.state === "ready" ? resource() : undefined)
 
   const cards = (): Card[] => {
-    const current = resolved()
-    if (!current) return []
-    return settings.cardBacks
-      ? cardBacks(current.cardBack)
-      : selectFromDeck(current.cards, deckSettled())
+    const data = resourceData()
+    if (!data) return []
+    return settings.cardBacks ? cardBacks(data.cardBack) : selectFromDeck(data.cards, deckSettled())
   }
 
   const renderedCards = createMemo<RenderedCard[]>(() => {
-    const current = resolved()
-    if (!current) return []
+    const data = resourceData()
+    if (!data) return []
     return cards().map((card) => {
-      const cached = current.rendered.get(card.id)
+      const cached = data.rendered.get(card.id)
       if (cached) return cached
-      const rendered: RenderedCard = { id: card.id, layers: cardLayers(current.ctx, card) }
-      current.rendered.set(card.id, rendered)
+      const rendered: RenderedCard = { id: card.id, layers: cardLayers(data.ctx, card) }
+      data.rendered.set(card.id, rendered)
       return rendered
     })
   })
 
-  const ready = () => loaded.state === "ready"
+  const ready = () => resource.state === "ready"
 
   const status = () => {
-    if (loaded.loading) return "Loading…"
-    const error: unknown = loaded.error
+    if (resource.loading) return "Loading…"
+    const error: unknown = resource.error
     if (error) return toMessage(error)
     return buildError()
   }
