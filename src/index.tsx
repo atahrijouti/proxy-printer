@@ -5,7 +5,6 @@ import {
   createMemo,
   createSignal,
   onCleanup,
-  Show,
   type Accessor,
   type Component,
 } from "solid-js"
@@ -15,6 +14,7 @@ import { loadResources, type RenderContext } from "./resources"
 import { cardBacks, selectFromDeck } from "./deck"
 import { Document, type RenderedCard } from "./document"
 import { buildPdf } from "./pdf"
+import { Sidebar } from "./sidebar"
 import { cardLayers } from "./render"
 import type { DB } from "./types"
 
@@ -112,34 +112,17 @@ const App: Component = () => {
 
   return (
     <>
-      <aside class="controls no-print">
-        <input
-          type="text"
-          value={dbUrl()}
-          onInput={(event) => setDbUrl(event.currentTarget.value)}
-        />
-        <label>
-          <input
-            type="checkbox"
-            checked={isCardBack()}
-            onChange={() => setIsCardBack(!isCardBack())}
-          />
-          Card backs
-        </label>
-        <textarea
-          class="deck"
-          placeholder="1 card id per line — blank prints all"
-          value={deck()}
-          onInput={(event) => setDeck(event.currentTarget.value)}
-          disabled={isCardBack()}
-        />
-        <button onClick={downloadPdf} disabled={!ctx()}>
-          Download PDF
-        </button>
-        <Show when={status()}>
-          <div class="msg">{status()}</div>
-        </Show>
-      </aside>
+      <Sidebar
+        dbUrl={dbUrl()}
+        setDbUrl={setDbUrl}
+        deck={deck()}
+        setDeck={setDeck}
+        cardBacks={isCardBack()}
+        setCardBacks={setIsCardBack}
+        status={status()}
+        ready={ctx() !== null}
+        onDownload={downloadPdf}
+      />
       <main>
         <Document cards={renderedCards()} />
       </main>
