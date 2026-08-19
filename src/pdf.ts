@@ -1,8 +1,8 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone"
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import type { Layer } from "./render"
+import { toPoints } from "./units"
 
-const MM_TO_PT = 72 / 25.4
 const COLUMNS = 3
 const ROWS = 3
 const PER_PAGE = COLUMNS * ROWS
@@ -26,14 +26,14 @@ export async function buildPdf(cards: Layer[][]): Promise<Blob> {
     doc.on("end", () => resolve(new Blob(chunks, { type: "application/pdf" })))
   })
 
-  const w = CARD_WIDTH_MM * MM_TO_PT
-  const h = CARD_HEIGHT_MM * MM_TO_PT
-  const r = CARD_RADIUS_MM * MM_TO_PT
+  const w = toPoints(CARD_WIDTH_MM)
+  const h = toPoints(CARD_HEIGHT_MM)
+  const r = toPoints(CARD_RADIUS_MM)
   cards.forEach((layers, index) => {
     const slot = index % PER_PAGE
     if (index > 0 && slot === 0) doc.addPage({ size: "A4", margin: 0 })
-    const x = (MARGIN_X_MM + (slot % COLUMNS) * CARD_WIDTH_MM) * MM_TO_PT
-    const y = (MARGIN_Y_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM) * MM_TO_PT
+    const x = toPoints(MARGIN_X_MM + (slot % COLUMNS) * CARD_WIDTH_MM)
+    const y = toPoints(MARGIN_Y_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM)
     doc.save()
     doc.roundedRect(x, y, w, h, r).clip()
     for (const layer of layers) {

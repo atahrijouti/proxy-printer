@@ -1,26 +1,14 @@
-const PX_PER_INCH = 96
-const PT_PER_INCH = 72
-const MM_PER_INCH = 25.4
 const PX_PER_MM = 16
+const PT_PER_MM = 72 / 25.4
 
 export const toPixels = (mm: number): number => mm * PX_PER_MM
+export const toPoints = (mm: number): number => mm * PT_PER_MM
 
 export function toMillimetres(value: string | number | undefined, emInMm = 0): number {
   if (value == null) return 0
   if (typeof value === "number") return value
-  const match = value.trim().match(/^(-?[\d.]+)\s*(mm|px|em|pt)?$/)
+  const match = value.trim().match(/^(-?[\d.]+)\s*(mm|em)?$/)
   if (!match) return 0
   const amount = parseFloat(match[1])
-  switch (match[2] ?? "mm") {
-    case "mm":
-      return amount
-    case "px":
-      return (amount / PX_PER_INCH) * MM_PER_INCH
-    case "pt":
-      return (amount / PT_PER_INCH) * MM_PER_INCH
-    case "em":
-      return amount * emInMm
-    default:
-      return amount
-  }
+  return match[2] === "em" ? amount * emInMm : amount
 }
