@@ -1,13 +1,7 @@
-import {
-  createEffect,
-  createMemo,
-  createResource,
-  createSignal,
-  onCleanup,
-  type Accessor,
-} from "solid-js"
+import { createMemo, createResource, createSignal, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import { cardBacks, selectFromDeck } from "./deck"
+import { debounced } from "./debounce"
 import { downloadBlob } from "./download"
 import { buildPdf } from "./pdf"
 import { cardLayers, type Layer } from "./render"
@@ -62,16 +56,6 @@ const toMessage = (error: unknown): string =>
 
 function symbolUrls(db: DB): string[] {
   return [...new Set(Object.values(db.symbols ?? {}))]
-}
-
-function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
-  const [value, setValue] = createSignal(source())
-  createEffect(() => {
-    const next = source()
-    const timer = setTimeout(() => setValue(() => next), delayMs)
-    onCleanup(() => clearTimeout(timer))
-  })
-  return value
 }
 
 async function fetchDb(url: string): Promise<DB> {
