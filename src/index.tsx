@@ -22,7 +22,7 @@ const App: Component = () => {
 
 const root = document.getElementById("root")
 if (!(root instanceof HTMLElement)) {
-  throw new Error("Root element not found in skia-canvas-kit-print.html")
+  throw new Error("Root element not found in index.html")
 }
 
 render(() => <App />, root)
