@@ -101,16 +101,13 @@ export function createPrinter() {
 
   const resourceData = (): Data | undefined => (resource.state === "ready" ? resource() : undefined)
 
-  const cards = (): Card[] => {
-    const data = resourceData()
-    if (!data) return []
-    return settings.cardBacks ? cardBacks(data.cardBack) : selectFromDeck(data.cards, deckSettled())
-  }
+  const cards = (data: Data): Card[] =>
+    settings.cardBacks ? cardBacks(data.cardBack) : selectFromDeck(data.cards, deckSettled())
 
   const renderedCards = createMemo<RenderedCard[]>(() => {
     const data = resourceData()
     if (!data) return []
-    return cards().map((card) => {
+    return cards(data).map((card) => {
       const cached = data.rendered.get(card.id)
       if (cached) return cached
       const rendered: RenderedCard = { id: card.id, layers: cardLayers(data.ctx, card) }
