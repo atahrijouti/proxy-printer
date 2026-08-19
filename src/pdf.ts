@@ -1,4 +1,4 @@
-import PDFDocument from "pdfkit/js/pdfkit.standalone.js"
+import PDFDocument from "pdfkit/js/pdfkit.standalone"
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
 import type { Layer } from "./render"
 

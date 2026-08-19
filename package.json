@@ -17,6 +17,7 @@
   "devDependencies": {
     "@types/lodash": "^4.17.25",
     "@types/node": "^24.13.3",
+    "@types/pdfkit": "^0.17.6",
     "solid-devtools": "^0.34.5",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
