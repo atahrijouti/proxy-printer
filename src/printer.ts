@@ -41,6 +41,16 @@ export interface RenderedCard {
   layers: Layer[]
 }
 
+export interface Printer {
+  settings: Settings
+  setSettings: <K extends keyof Settings>(key: K, value: Settings[K]) => void
+  status: Accessor<string>
+  ready: Accessor<boolean>
+  building: Accessor<boolean>
+  renderedCards: Accessor<RenderedCard[]>
+  downloadPdf: () => Promise<void>
+}
+
 interface Data {
   cards: Card[]
   cardBack?: string
@@ -86,7 +96,7 @@ async function prepareData(db: DB): Promise<Data> {
   }
 }
 
-export function createPrinter() {
+export function createPrinter(): Printer {
   const [settings, setSettings] = createStore<Settings>({
     dbUrl: DEFAULT_URL,
     deck: DEFAULT_DECK,
@@ -142,4 +152,3 @@ export function createPrinter() {
   return { settings, setSettings, status, ready, building, renderedCards, downloadPdf }
 }
 
-export type Printer = ReturnType<typeof createPrinter>
