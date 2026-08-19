@@ -4,7 +4,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  For,
   onCleanup,
   Show,
   type Accessor,
@@ -14,6 +13,7 @@ import {
 import "./index.css"
 import { loadResources, type RenderContext } from "./resources"
 import { cardBacks, selectFromDeck } from "./deck"
+import { Document, type RenderedCard } from "./document"
 import { buildPdf } from "./pdf"
 import { cardLayers } from "./render"
 import type { DB } from "./types"
@@ -94,14 +94,14 @@ const App: Component = () => {
     return isCardBack() ? cardBacks(database) : selectFromDeck(database.cards, deckSettled())
   }
 
-  const deckLayers = createMemo(() => {
+  const renderedCards = createMemo<RenderedCard[]>(() => {
     const context = ctx()
     if (!context) return []
-    return cards().map((card) => cardLayers(context, card))
+    return cards().map((card) => ({ id: card.id, layers: cardLayers(context, card) }))
   })
 
   async function downloadPdf() {
-    const blob = await buildPdf(deckLayers())
+    const blob = await buildPdf(renderedCards().map((card) => card.layers))
     const href = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
     anchor.href = href
@@ -141,15 +141,7 @@ const App: Component = () => {
         </Show>
       </aside>
       <main>
-        <div class="page">
-          <For each={deckLayers()}>
-            {(layers) => (
-              <div class="card">
-                <For each={layers}>{(layer) => <img class="layer" src={layer.src} alt="" />}</For>
-              </div>
-            )}
-          </For>
-        </div>
+        <Document cards={renderedCards()} />
       </main>
     </>
   )

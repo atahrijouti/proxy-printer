@@ -38,6 +38,10 @@
   padding: 10mm;
 }
 
+.page + .page {
+  margin-top: 10mm;
+}
+
 .card {
   position: relative;
   width: 63mm;
@@ -56,5 +60,10 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+
+  .page + .page {
+    margin-top: 0;
+    break-before: page;
   }
 }
