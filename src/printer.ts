@@ -44,6 +44,7 @@ export interface RenderedCard {
 interface LoadedDb {
   db: DB
   ctx: RenderContext
+  rendered: Map<string, RenderedCard>
 }
 
 const toMessage = (error: unknown): string =>
@@ -76,6 +77,7 @@ async function loadDb(url: string): Promise<LoadedDb> {
       symbols: db.symbols ?? {},
       scale: TEXT_SCALE,
     },
+    rendered: new Map(),
   }
 }
 
@@ -105,7 +107,13 @@ export function createPrinter() {
   const renderedCards = createMemo<RenderedCard[]>(() => {
     const current = resolved()
     if (!current) return []
-    return cards().map((card) => ({ id: card.id, layers: cardLayers(current.ctx, card) }))
+    return cards().map((card) => {
+      const cached = current.rendered.get(card.id)
+      if (cached) return cached
+      const rendered: RenderedCard = { id: card.id, layers: cardLayers(current.ctx, card) }
+      current.rendered.set(card.id, rendered)
+      return rendered
+    })
   })
 
   const ready = () => loaded.state === "ready"
