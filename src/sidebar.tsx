@@ -2,7 +2,7 @@ import { Show, type Component } from "solid-js"
 import type { Printer } from "./printer"
 
 export const Sidebar: Component<{ printer: Printer }> = (props) => {
-  const { settings, setSettings, status, ready, downloadPdf } = props.printer
+  const { settings, setSettings, status, ready, building, downloadPdf } = props.printer
 
   return (
     <aside class="controls no-print">
@@ -26,8 +26,8 @@ export const Sidebar: Component<{ printer: Printer }> = (props) => {
         onInput={(event) => setSettings("deck", event.currentTarget.value)}
         disabled={settings.cardBacks}
       />
-      <button onClick={downloadPdf} disabled={!ready()}>
-        Download PDF
+      <button onClick={downloadPdf} disabled={!ready() || building()}>
+        {building() ? "Building PDF…" : "Download PDF"}
       </button>
       <Show when={status()}>
         <div class="msg">{status()}</div>

@@ -8,6 +8,7 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { cardBacks, selectFromDeck } from "./deck"
+import { downloadBlob } from "./download"
 import { buildPdf } from "./pdf"
 import { cardLayers, type Layer } from "./render"
 import { loadResources, type RenderContext } from "./resources"
@@ -25,9 +26,9 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 1 aladdin - heroic outlaw
 1 jasmine - queen of agrabah`
 const TEXT_SCALE = 16
-const REVOKE_DELAY_MS = 10_000
 const DB_URL_DEBOUNCE_MS = 500
 const DECK_DEBOUNCE_MS = 300
+const FILE_NAME = "proxies.pdf"
 
 export interface Settings {
   dbUrl: string
@@ -44,6 +45,9 @@ interface LoadedDb {
   db: DB
   ctx: RenderContext
 }
+
+const toMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
 
 function symbolUrls(db: DB): string[] {
   return [...new Set(Object.values(db.symbols ?? {}))]
@@ -81,6 +85,8 @@ export function createPrinter() {
     deck: DEFAULT_DECK,
     cardBacks: false,
   })
+  const [building, setBuilding] = createSignal(false)
+  const [buildError, setBuildError] = createSignal("")
 
   const urlSettled = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
   const deckSettled = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
@@ -107,21 +113,25 @@ export function createPrinter() {
   const status = () => {
     if (loaded.loading) return "Loading…"
     const error: unknown = loaded.error
-    if (error) return error instanceof Error ? error.message : String(error)
-    return ""
+    if (error) return toMessage(error)
+    return buildError()
   }
 
-  async function downloadPdf() {
-    const blob = await buildPdf(renderedCards().map((card) => card.layers))
-    const href = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = href
-    anchor.download = "proxies.pdf"
-    anchor.click()
-    setTimeout(() => URL.revokeObjectURL(href), REVOKE_DELAY_MS)
+  const toPdf = (): Promise<Blob> => buildPdf(renderedCards().map((card) => card.layers))
+
+  async function downloadPdf(): Promise<void> {
+    setBuilding(true)
+    setBuildError("")
+    try {
+      downloadBlob(await toPdf(), FILE_NAME)
+    } catch (error) {
+      setBuildError(toMessage(error))
+    } finally {
+      setBuilding(false)
+    }
   }
 
-  return { settings, setSettings, status, ready, renderedCards, downloadPdf }
+  return { settings, setSettings, status, ready, building, renderedCards, downloadPdf }
 }
 
 export type Printer = ReturnType<typeof createPrinter>
