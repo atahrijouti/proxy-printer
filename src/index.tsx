@@ -1,130 +1,20 @@
 /* @refresh reload */
 import { render } from "solid-js/web"
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  type Accessor,
-  type Component,
-} from "solid-js"
+import type { Component } from "solid-js"
 
 import "./index.css"
-import { loadResources, type RenderContext } from "./resources"
-import { cardBacks, selectFromDeck } from "./deck"
-import { Document, type RenderedCard } from "./document"
-import { buildPdf } from "./pdf"
+import { Document } from "./document"
+import { createPrinter } from "./printer"
 import { Sidebar } from "./sidebar"
-import { cardLayers } from "./render"
-import type { DB } from "./types"
-
-const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
-
-const DEFAULT_DECK = `1 tinker bell - giant fairy
-1 genie - powers unleashed
-1 donald duck - musketeer
-1 goofy - musketeer
-1 maximus - palace horse
-1 ariel - spectacular singer
-1 captain hook - thinking a happy thought
-1 aladdin - heroic outlaw
-1 jasmine - queen of agrabah`
-const TEXT_SCALE = 16
-const REVOKE_DELAY_MS = 10_000
-const DB_URL_DEBOUNCE_MS = 500
-const DECK_DEBOUNCE_MS = 300
-
-function symbolUrls(db: DB): string[] {
-  return [...new Set(Object.values(db.symbols ?? {}))]
-}
-
-function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
-  const [value, setValue] = createSignal(source())
-  createEffect(() => {
-    const next = source()
-    const timer = setTimeout(() => setValue(() => next), delayMs)
-    onCleanup(() => clearTimeout(timer))
-  })
-  return value
-}
 
 const App: Component = () => {
-  const [dbUrl, setDbUrl] = createSignal(DEFAULT_URL)
-  const [deck, setDeck] = createSignal(DEFAULT_DECK)
-  const [isCardBack, setIsCardBack] = createSignal(false)
-  const [ctx, setCtx] = createSignal<RenderContext | null>(null)
-  const [db, setDb] = createSignal<DB | null>(null)
-  const [status, setStatus] = createSignal("Loading…")
-  const dbUrlSettled = debounced(dbUrl, DB_URL_DEBOUNCE_MS)
-  const deckSettled = debounced(deck, DECK_DEBOUNCE_MS)
-
-  createEffect(() => {
-    const url = dbUrlSettled()
-    setCtx(null)
-    setDb(null)
-    setStatus("Loading…")
-    ;(async () => {
-      try {
-        const response = await fetch(url)
-        if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
-        const database = (await response.json()) as DB
-        setStatus("Loading resources…")
-        const styles = database.presentation?.styles ?? {}
-        const resources = await loadResources(
-          database.presentation?.fonts ?? [],
-          symbolUrls(database),
-        )
-        setCtx({
-          ...resources,
-          styles,
-          symbols: database.symbols ?? {},
-          scale: TEXT_SCALE,
-        })
-        setDb(database)
-        setStatus("")
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : String(error))
-      }
-    })()
-  })
-
-  const cards = () => {
-    const database = db()
-    if (!database) return []
-    return isCardBack() ? cardBacks(database) : selectFromDeck(database.cards, deckSettled())
-  }
-
-  const renderedCards = createMemo<RenderedCard[]>(() => {
-    const context = ctx()
-    if (!context) return []
-    return cards().map((card) => ({ id: card.id, layers: cardLayers(context, card) }))
-  })
-
-  async function downloadPdf() {
-    const blob = await buildPdf(renderedCards().map((card) => card.layers))
-    const href = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = href
-    anchor.download = "proxies.pdf"
-    anchor.click()
-    setTimeout(() => URL.revokeObjectURL(href), REVOKE_DELAY_MS)
-  }
+  const printer = createPrinter()
 
   return (
     <>
-      <Sidebar
-        dbUrl={dbUrl()}
-        setDbUrl={setDbUrl}
-        deck={deck()}
-        setDeck={setDeck}
-        cardBacks={isCardBack()}
-        setCardBacks={setIsCardBack}
-        status={status()}
-        ready={ctx() !== null}
-        onDownload={downloadPdf}
-      />
+      <Sidebar printer={printer} />
       <main>
-        <Document cards={renderedCards()} />
+        <Document cards={printer.renderedCards()} />
       </main>
     </>
   )

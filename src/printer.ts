@@ -1,0 +1,123 @@
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+  type Accessor,
+} from "solid-js"
+import { createStore } from "solid-js/store"
+import { cardBacks, selectFromDeck } from "./deck"
+import type { RenderedCard } from "./document"
+import { buildPdf } from "./pdf"
+import { cardLayers } from "./render"
+import { loadResources, type RenderContext } from "./resources"
+import type { Card, DB } from "./types"
+
+const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
+
+const DEFAULT_DECK = `1 tinker bell - giant fairy
+1 genie - powers unleashed
+1 donald duck - musketeer
+1 goofy - musketeer
+1 maximus - palace horse
+1 ariel - spectacular singer
+1 captain hook - thinking a happy thought
+1 aladdin - heroic outlaw
+1 jasmine - queen of agrabah`
+const TEXT_SCALE = 16
+const REVOKE_DELAY_MS = 10_000
+const DB_URL_DEBOUNCE_MS = 500
+const DECK_DEBOUNCE_MS = 300
+
+export interface Settings {
+  dbUrl: string
+  deck: string
+  cardBacks: boolean
+}
+
+interface LoadedDb {
+  db: DB
+  ctx: RenderContext
+}
+
+function symbolUrls(db: DB): string[] {
+  return [...new Set(Object.values(db.symbols ?? {}))]
+}
+
+function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
+  const [value, setValue] = createSignal(source())
+  createEffect(() => {
+    const next = source()
+    const timer = setTimeout(() => setValue(() => next), delayMs)
+    onCleanup(() => clearTimeout(timer))
+  })
+  return value
+}
+
+async function loadDb(url: string): Promise<LoadedDb> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
+  const db = (await response.json()) as DB
+  const resources = await loadResources(db.presentation?.fonts ?? [], symbolUrls(db))
+  return {
+    db,
+    ctx: {
+      ...resources,
+      styles: db.presentation?.styles ?? {},
+      symbols: db.symbols ?? {},
+      scale: TEXT_SCALE,
+    },
+  }
+}
+
+export function createPrinter() {
+  const [settings, setSettings] = createStore<Settings>({
+    dbUrl: DEFAULT_URL,
+    deck: DEFAULT_DECK,
+    cardBacks: false,
+  })
+
+  const urlSettled = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
+  const deckSettled = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
+  const [loaded] = createResource(urlSettled, loadDb)
+
+  const resolved = (): LoadedDb | undefined => (loaded.state === "ready" ? loaded() : undefined)
+
+  const cards = (): Card[] => {
+    const current = resolved()
+    if (!current) return []
+    return settings.cardBacks
+      ? cardBacks(current.db)
+      : selectFromDeck(current.db.cards, deckSettled())
+  }
+
+  const renderedCards = createMemo<RenderedCard[]>(() => {
+    const current = resolved()
+    if (!current) return []
+    return cards().map((card) => ({ id: card.id, layers: cardLayers(current.ctx, card) }))
+  })
+
+  const ready = () => loaded.state === "ready"
+
+  const status = () => {
+    if (loaded.loading) return "Loading…"
+    const error: unknown = loaded.error
+    if (error) return error instanceof Error ? error.message : String(error)
+    return ""
+  }
+
+  async function downloadPdf() {
+    const blob = await buildPdf(renderedCards().map((card) => card.layers))
+    const href = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = href
+    anchor.download = "proxies.pdf"
+    anchor.click()
+    setTimeout(() => URL.revokeObjectURL(href), REVOKE_DELAY_MS)
+  }
+
+  return { settings, setSettings, status, ready, renderedCards, downloadPdf }
+}
+
+export type Printer = ReturnType<typeof createPrinter>

@@ -1,44 +1,37 @@
 import { Show, type Component } from "solid-js"
+import type { Printer } from "./printer"
 
-export interface SidebarProps {
-  dbUrl: string
-  setDbUrl: (value: string) => void
-  deck: string
-  setDeck: (value: string) => void
-  cardBacks: boolean
-  setCardBacks: (value: boolean) => void
-  status: string
-  ready: boolean
-  onDownload: () => void
-}
+export const Sidebar: Component<{ printer: Printer }> = (props) => {
+  const { settings, setSettings, status, ready, downloadPdf } = props.printer
 
-export const Sidebar: Component<SidebarProps> = (props) => (
-  <aside class="controls no-print">
-    <input
-      type="text"
-      value={props.dbUrl}
-      onInput={(event) => props.setDbUrl(event.currentTarget.value)}
-    />
-    <label>
+  return (
+    <aside class="controls no-print">
       <input
-        type="checkbox"
-        checked={props.cardBacks}
-        onChange={() => props.setCardBacks(!props.cardBacks)}
+        type="text"
+        value={settings.dbUrl}
+        onInput={(event) => setSettings("dbUrl", event.currentTarget.value)}
       />
-      Card backs
-    </label>
-    <textarea
-      class="deck"
-      placeholder="1 card id per line — blank prints all"
-      value={props.deck}
-      onInput={(event) => props.setDeck(event.currentTarget.value)}
-      disabled={props.cardBacks}
-    />
-    <button onClick={props.onDownload} disabled={!props.ready}>
-      Download PDF
-    </button>
-    <Show when={props.status}>
-      <div class="msg">{props.status}</div>
-    </Show>
-  </aside>
-)
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.cardBacks}
+          onChange={() => setSettings("cardBacks", !settings.cardBacks)}
+        />
+        Card backs
+      </label>
+      <textarea
+        class="deck"
+        placeholder="1 card id per line — blank prints all"
+        value={settings.deck}
+        onInput={(event) => setSettings("deck", event.currentTarget.value)}
+        disabled={settings.cardBacks}
+      />
+      <button onClick={downloadPdf} disabled={!ready()}>
+        Download PDF
+      </button>
+      <Show when={status()}>
+        <div class="msg">{status()}</div>
+      </Show>
+    </aside>
+  )
+}
