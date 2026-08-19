@@ -29,17 +29,15 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 1 captain hook - thinking a happy thought
 1 aladdin - heroic outlaw
 1 jasmine - queen of agrabah`
-const TEXT_SCALE = 16 // px per mm for rasterizing text layers; the card art stays native
+const TEXT_SCALE = 16
 const REVOKE_DELAY_MS = 10_000
 const DB_URL_DEBOUNCE_MS = 500
 const DECK_DEBOUNCE_MS = 300
 
-// canvaskit only draws the {sym} symbols into text layers; all card art renders as native <img>
 function symbolUrls(db: DB): string[] {
   return [...new Set(Object.values(db.symbols ?? {}))]
 }
 
-// the input keeps the live signal so typing stays responsive; the expensive work reads this
 function debounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
   const [value, setValue] = createSignal(source())
   createEffect(() => {
@@ -96,7 +94,6 @@ const App: Component = () => {
     return isCardBack() ? cardBacks(database) : selectFromDeck(database.cards, deckSettled())
   }
 
-  // text layers are rasterized once by canvaskit; the art is native <img> — shared by screen + PDF
   const deckLayers = createMemo(() => {
     const context = ctx()
     if (!context) return []

@@ -1,9 +1,3 @@
-// Thin drawing layer. compose.ts resolves the DB into an engine-agnostic request,
-// layout.ts turns it into positioned primitives, and this file only paints them onto a
-// transparent canvaskit surface — then assembles a card's layer stack (the canvas2d model:
-// base art + image overlays stay native URLs, each run of text overlays is one PNG layer,
-// so canvaskit never decodes the card art and the WASM heap stays tiny for any deck size).
-
 import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
@@ -13,9 +7,7 @@ import type { Card, Overlay } from "./types"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
-export type Layer =
-  | { type: "image"; src: string } // a URL: the base art or an image overlay
-  | { type: "text"; src: string } // a data URL: a rasterized run of consecutive text overlays
+export type Layer = { type: "image"; src: string } | { type: "text"; src: string }
 
 export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
   const layers: Layer[] = [{ type: "image", src: card.image }]
@@ -32,14 +24,11 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
     }
     flush()
     if (overlay.type === "image") layers.push({ type: "image", src: overlay.src })
-    // shape overlays are not implemented — they contribute no layer
   }
   flush()
   return layers
 }
 
-// draw a run of text overlays onto one transparent card-sized surface → a PNG data URL.
-// the surface and every paragraph are freed on all paths (finally), so a throw can't leak.
 function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   const surface = ctx.ck.MakeSurface(CARD_WIDTH_MM * ctx.scale, CARD_HEIGHT_MM * ctx.scale)
   if (!surface) throw new Error("could not create raster surface")
@@ -64,7 +53,6 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   }
 }
 
-// backgrounds first (behind), then the text, then inline images on top
 function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
   try {
     for (const background of layout.backgrounds) {
@@ -84,8 +72,7 @@ function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
 
 function drawImageBox(canvas: Canvas, ctx: RenderContext, placed: PlacedImage) {
   const { src, x, y, width, height } = placed
-  // resvg rasterizes the symbol at this height, so this is a ~1:1 blit; Linear only covers
-  // the sub-pixel remainder between the integer raster and the fractional placeholder box
+
   const image = symbolImage(ctx, src, height)
   if (!image) return
   const paint = new ctx.ck.Paint()
@@ -102,7 +89,7 @@ function drawImageBox(canvas: Canvas, ctx: RenderContext, placed: PlacedImage) {
 
 function pngDataUrl(bytes: Uint8Array): string {
   let binary = ""
-  const CHUNK = 0x8000 // chunk so String.fromCharCode(...) never overruns the arg limit
+  const CHUNK = 0x8000
   for (let i = 0; i < bytes.length; i += CHUNK)
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
   return `data:image/png;base64,${btoa(binary)}`

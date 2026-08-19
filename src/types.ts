@@ -43,14 +43,11 @@ export interface Card {
   overlays?: Overlay[]
 }
 
-// how the DB's text looks: the faces to load and the named styles that reference them
 export interface Presentation {
   fonts: FontFace[]
   styles: Record<string, Style>
 }
 
-// content, not presentation: `{sym NAME}` → the URL of an image substituted inline into text.
-// This registry exists for that one purpose — it is never drawn as an overlay of its own.
 export type Symbols = Record<string, string>
 
 export interface DB {

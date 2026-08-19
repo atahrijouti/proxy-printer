@@ -1,7 +1,3 @@
-// Inline markup → flat nodes. `{t NAME …}` tags a span with a style-name; `{sym NAME}`
-// substitutes a registered inline symbol. Each node carries the stack of style-names active
-// over it (outermost first); compose.ts resolves that stack against the registry.
-
 export interface TextNode {
   type: "text"
   text: string

@@ -1,22 +1,16 @@
-// Domain glue between the DB and the canvaskit layout engine. It parses `{t}`/`{sym}`
-// markup, resolves style-names against the styles registry and symbol-names into inline
-// image URLs, and derives the block box — all in millimetres, with no canvaskit types.
-// layout.ts turns this into a positioned canvaskit paragraph; render.ts draws it.
-
 import { parseMarkup } from "./markup"
 import type { Overlay, Style, Symbols } from "./types"
 import { toMillimetres } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
-// one span of a paragraph: styled text, or an inline image (a {sym}'s resolved URL)
 export type Span = { style: Style; text: string } | { style: Style; imageSrc: string }
 export type Paragraph = Span[]
 
 export interface ComposedText {
   mode: "inline" | "block"
   content: Paragraph[]
-  style: Style // the block's base style (font, align, valign, lineHeight, paragraphGap)
+  style: Style
   boxXMm: number
   boxYMm: number
   boxWidthMm: number
@@ -35,7 +29,6 @@ export function composeText(
   const raw = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
     (p): p is string => typeof p === "string" && p.length > 0,
   )
-  // a block wraps each paragraph; an inline style is a single line, so join first
   const markups = mode === "block" ? raw : [raw.join(" ")]
   const content = markups.map((markup) => composeParagraph(markup, base, styles, symbols))
 
@@ -73,7 +66,6 @@ function composeParagraph(
   return spans
 }
 
-// merge a base style with the {t NAME} style-names active over a span, left to right
 const mergeStyleNames = (base: Style, names: string[], styles: Record<string, Style>): Style =>
   names.reduce((merged, name) => {
     const style = styles[name]

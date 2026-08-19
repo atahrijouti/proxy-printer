@@ -10,8 +10,6 @@ const MARGIN_X_MM = 10.5
 const MARGIN_Y_MM = 16.5
 const EPOCH = new Date(0)
 
-// each card is a stack of layers placed on one card slot: art layers (URLs) embed their original
-// bytes untouched, text layers are already data URLs. pdfkit composites them in order.
 export async function buildPdf(cards: Layer[][]): Promise<Blob> {
   const artUrls = [...new Set(cards.flat().flatMap((l) => (l.type === "image" ? [l.src] : [])))]
   const artData = new Map<string, string>()
@@ -49,7 +47,6 @@ export async function buildPdf(cards: Layer[][]): Promise<Blob> {
   return done
 }
 
-// fetch an image's original bytes as a data URL — embedded verbatim (no re-encode)
 async function fetchDataUrl(url: string): Promise<string> {
   const blob = await (await fetch(url)).blob()
   return new Promise((resolve, reject) => {

@@ -1,8 +1,3 @@
-// The layout engine: canvaskit measures, shapes, wraps, and positions the text, and we
-// read finished device-pixel coordinates back out as placed primitives. This is skia's
-// analogue of the canvas2d printer's flow.ts — the difference is that canvaskit (not a
-// hand-rolled measurer) is the engine. render.ts only draws what this returns.
-
 import type {
   Paragraph,
   ParagraphBuilder,
@@ -21,15 +16,13 @@ import {
 import type { Style } from "./types"
 import { toMillimetres } from "./units"
 
-// (the inline {sym} image is INLINE_IMAGE_CAP_RATIO × cap height, centred on the cap-box middle)
-const UNBOUNDED_WIDTH_PX = 1e6 // an inline (single-line) style never wraps
+const UNBOUNDED_WIDTH_PX = 1e6
 const DEFAULT_FONT_FAMILY = "Bogle"
-const MIN_FONT_RATIO = 0.6 // shrink-to-fit floor: block text shrinks to at most 60% (canvas2d parity)
-const SHRINK_STEP_MM = 0.05 // font-size decrement per shrink attempt
+const MIN_FONT_RATIO = 0.6
+const SHRINK_STEP_MM = 0.05
 
-// ── Placed primitives (device px) — the whole engine output render.ts consumes ─────
 export interface PlacedParagraph {
-  paragraph: Paragraph // owned by the caller: draw it, then delete it
+  paragraph: Paragraph
   x: number
   y: number
 }
@@ -39,9 +32,9 @@ export interface PlacedBackground {
   right: number
   bottom: number
   radius: number
-  fill: string // hex; render turns it into a canvaskit colour
+  fill: string
 }
-// the symbol's URL, not its pixels: render.ts rasterizes it at this height (see resources.ts)
+
 export interface PlacedImage {
   src: string
   x: number
@@ -62,8 +55,6 @@ export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Layou
   return layout
 }
 
-// An inline style is a single line placed at box.x (or centred across the card); box.y is
-// the cap-top (canvas2d: baseline = box.y + cap), so we lift by capTop.
 function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout) {
   const fontSizeMm = toMillimetres(composed.style.fontSize)
   const spans = composed.content[0] ?? []
@@ -84,8 +75,6 @@ function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout
   placeParagraph(layout, ctx, shaped, x, y, fontSizeMm)
 }
 
-// A block wraps within box.w and shrinks its font-size until it fits box.h (canvas2d parity),
-// then vertical-aligns; box.y is the cap-top of the first line.
 function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout) {
   const boxX = px(composed.boxXMm, ctx)
   const boxHeightPx = px(composed.boxHeightMm, ctx)
@@ -94,7 +83,6 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
   const baseFontSizeMm = toMillimetres(composed.style.fontSize)
   const minFontSizeMm = baseFontSizeMm * MIN_FONT_RATIO
 
-  // lay the whole block out at a candidate font-size, measuring its stacked height
   const tryLayout = (fontSizeMm: number) => {
     const paragraphs = composed.content.map((spans) =>
       buildParagraph(ctx, composed.style, spans, fontSizeMm, wrapWidth, align),
@@ -106,7 +94,6 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
     return { paragraphs, paragraphGap, height, fontSizeMm }
   }
 
-  // shrink-to-fit: keep shrinking the font-size until the block fits box.h (or hits the floor)
   let laid = tryLayout(baseFontSizeMm)
   while (laid.height > boxHeightPx && laid.fontSizeMm > minFontSizeMm) {
     for (const shaped of laid.paragraphs) shaped.paragraph.delete()
@@ -120,7 +107,6 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
       : px(composed.boxYMm, ctx)
   const capHeight = capHeightPx(ctx, composed.style, laid.fontSizeMm)
   const firstLineAscent = laid.paragraphs[0]?.paragraph.getLineMetrics()[0]?.ascent ?? 0
-  // canvaskit puts the first baseline at top + ascent; lift so box.y lands on the cap-top instead
   let cursorY = blockTop - (firstLineAscent - capHeight)
   for (const shaped of laid.paragraphs) {
     placeParagraph(layout, ctx, shaped, boxX, cursorY, laid.fontSizeMm)
@@ -128,7 +114,6 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
   }
 }
 
-// ── Building a canvaskit paragraph from composed spans ────────────────────────────────
 interface InlineImage {
   src: string
   drop: number
@@ -138,10 +123,9 @@ interface BackgroundRange {
   end: number
   style: Style
 }
-// a laid-out canvaskit paragraph plus the data needed to place its images and backgrounds
 interface ShapedParagraph {
   paragraph: Paragraph
-  placeholders: (InlineImage | null)[] // index-aligned with the paragraph's placeholders
+  placeholders: (InlineImage | null)[]
   backgrounds: BackgroundRange[]
 }
 
@@ -207,12 +191,11 @@ function addSpan(
   builder.pop()
   const start = offset
   offset += text.length
-  // the background box wraps just the text; its outset extends it, margins sit outside it
+
   if (span.style.background) backgrounds.push({ start, end: offset, style: span.style })
   return addMargin(ctx, builder, span.style.margin?.after, fontSizeMm, offset, placeholders)
 }
 
-// a margin is a flow-only gap: a placeholder that reserves width but draws nothing
 function addMargin(
   ctx: RenderContext,
   builder: ParagraphBuilder,
@@ -234,7 +217,6 @@ function addMargin(
   return offset + 1
 }
 
-// ── Positioning one shaped paragraph and deriving its backgrounds / images ──────────
 function placeParagraph(
   layout: Layout,
   ctx: RenderContext,
@@ -269,7 +251,6 @@ function placeBackgrounds(
       ctx.ck.RectHeightStyle.Max,
       ctx.ck.RectWidthStyle.Tight,
     )) {
-      // each rect can be on a different line when a range wraps — pick the line by its own midpoint
       const midY = (rect[1] + rect[3]) / 2
       const line = lineAt(lines, midY)
       const baseline = originY + (line?.baseline ?? 0)
@@ -306,10 +287,8 @@ function placeImages(shaped: ShapedParagraph, originX: number, originY: number):
   return placed
 }
 
-// ── canvaskit + geometry helpers ─────────────────────────────────────────────────────
 const px = (mm: number, ctx: RenderContext) => mm * ctx.scale
 
-// the line whose vertical extent contains y (falling back to the first line)
 const lineAt = (lines: ReturnType<Paragraph["getLineMetrics"]>, y: number) =>
   lines.find((line) => y >= line.baseline - line.ascent && y <= line.baseline + line.descent) ??
   lines[0]
@@ -318,7 +297,6 @@ const capHeightPx = (ctx: RenderContext, style: Style, fontSizeMm: number) =>
   (ctx.capRatios.get(style.fontFamily ?? DEFAULT_FONT_FAMILY) ?? FALLBACK_CAP_RATIO) *
   px(fontSizeMm, ctx)
 
-// where the first line's cap-top sits relative to box.y (so box.y is the glyph top)
 function capTop(
   ctx: RenderContext,
   style: Style,
