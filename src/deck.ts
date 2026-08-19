@@ -1,4 +1,4 @@
-import type { Card, DB } from "./types"
+import type { Card } from "./types"
 
 const BACKS_PER_PAGE = 9
 
@@ -16,8 +16,7 @@ export function selectFromDeck(cards: Card[], deck: string): Card[] {
   return out
 }
 
-export function cardBacks(db: DB): Card[] {
-  if (!db.cardBack) return []
-  const back = db.cardBack
-  return Array.from({ length: BACKS_PER_PAGE }, (_, i) => ({ id: `back-${i}`, image: back }))
+export function cardBacks(cardBack: string | undefined): Card[] {
+  if (!cardBack) return []
+  return Array.from({ length: BACKS_PER_PAGE }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
 }

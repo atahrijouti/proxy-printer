@@ -42,7 +42,8 @@ export interface RenderedCard {
 }
 
 interface LoadedDb {
-  db: DB
+  cards: Card[]
+  cardBack?: string
   ctx: RenderContext
   rendered: Map<string, RenderedCard>
 }
@@ -70,7 +71,8 @@ async function loadDb(url: string): Promise<LoadedDb> {
   const db = (await response.json()) as DB
   const resources = await loadResources(db.presentation?.fonts ?? [], symbolUrls(db))
   return {
-    db,
+    cards: db.cards,
+    cardBack: db.cardBack,
     ctx: {
       ...resources,
       styles: db.presentation?.styles ?? {},
@@ -100,8 +102,8 @@ export function createPrinter() {
     const current = resolved()
     if (!current) return []
     return settings.cardBacks
-      ? cardBacks(current.db)
-      : selectFromDeck(current.db.cards, deckSettled())
+      ? cardBacks(current.cardBack)
+      : selectFromDeck(current.cards, deckSettled())
   }
 
   const renderedCards = createMemo<RenderedCard[]>(() => {
