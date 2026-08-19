@@ -119,7 +119,7 @@ export function createPrinter() {
     })
   })
 
-  const ready = () => resource.state === "ready"
+  const ready = () => resourceData() !== undefined
 
   const status = () => {
     if (resource.loading) return "Loading…"
