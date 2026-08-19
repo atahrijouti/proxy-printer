@@ -4,6 +4,7 @@ import { composeText } from "./compose"
 import { symbolImage, toColor, type RenderContext } from "./resources"
 import { layoutOverlay, type Layout, type PlacedImage } from "./layout"
 import type { Card, Overlay } from "./types"
+import { toPixels } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
@@ -30,7 +31,7 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
 }
 
 function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
-  const surface = ctx.ck.MakeSurface(CARD_WIDTH_MM * ctx.scale, CARD_HEIGHT_MM * ctx.scale)
+  const surface = ctx.ck.MakeSurface(toPixels(CARD_WIDTH_MM), toPixels(CARD_HEIGHT_MM))
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()

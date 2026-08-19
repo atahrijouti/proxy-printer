@@ -26,7 +26,6 @@ export interface Resources {
 export interface RenderContext extends Resources {
   styles: Record<string, Style>
   symbols: Symbols
-  scale: number
 }
 
 export const FALLBACK_CAP_RATIO = 0.7

@@ -14,7 +14,7 @@ import {
   type RenderContext,
 } from "./resources"
 import type { Style } from "./types"
-import { toMillimetres } from "./units"
+import { toMillimetres, toPixels } from "./units"
 
 const UNBOUNDED_WIDTH_PX = 1e6
 const DEFAULT_FONT_FAMILY = "Bogle"
@@ -69,16 +69,16 @@ function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout
   const width = shaped.paragraph.getMaxIntrinsicWidth()
   const x =
     composed.style.align === "center"
-      ? (px(CARD_WIDTH_MM, ctx) - width) / 2
-      : px(composed.boxXMm, ctx)
-  const y = capTop(ctx, composed.style, px(composed.boxYMm, ctx), fontSizeMm, shaped.paragraph)
+      ? (toPixels(CARD_WIDTH_MM) - width) / 2
+      : toPixels(composed.boxXMm)
+  const y = capTop(ctx, composed.style, toPixels(composed.boxYMm), fontSizeMm, shaped.paragraph)
   placeParagraph(layout, ctx, shaped, x, y, fontSizeMm)
 }
 
 function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout) {
-  const boxX = px(composed.boxXMm, ctx)
-  const boxHeightPx = px(composed.boxHeightMm, ctx)
-  const wrapWidth = px(composed.boxWidthMm, ctx)
+  const boxX = toPixels(composed.boxXMm)
+  const boxHeightPx = toPixels(composed.boxHeightMm)
+  const wrapWidth = toPixels(composed.boxWidthMm)
   const align = composed.style.align === "center" ? ctx.ck.TextAlign.Center : ctx.ck.TextAlign.Left
   const baseFontSizeMm = toMillimetres(composed.style.fontSize)
   const minFontSizeMm = baseFontSizeMm * MIN_FONT_RATIO
@@ -87,7 +87,7 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
     const paragraphs = composed.content.map((spans) =>
       buildParagraph(ctx, composed.style, spans, fontSizeMm, wrapWidth, align),
     )
-    const paragraphGap = px(toMillimetres(composed.style.paragraphGap, fontSizeMm), ctx)
+    const paragraphGap = toPixels(toMillimetres(composed.style.paragraphGap, fontSizeMm))
     const height =
       paragraphs.reduce((sum, shaped) => sum + shaped.paragraph.getHeight(), 0) +
       paragraphGap * Math.max(0, paragraphs.length - 1)
@@ -103,8 +103,8 @@ function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout)
   const spareHeight = boxHeightPx - laid.height
   const blockTop =
     composed.style.valign === "center"
-      ? px(composed.boxYMm, ctx) + Math.max(0, spareHeight / 2)
-      : px(composed.boxYMm, ctx)
+      ? toPixels(composed.boxYMm) + Math.max(0, spareHeight / 2)
+      : toPixels(composed.boxYMm)
   const capHeight = capHeightPx(ctx, composed.style, laid.fontSizeMm)
   const firstLineAscent = laid.paragraphs[0]?.paragraph.getLineMetrics()[0]?.ascent ?? 0
   let cursorY = blockTop - (firstLineAscent - capHeight)
@@ -204,7 +204,7 @@ function addMargin(
   offset: number,
   placeholders: (InlineImage | null)[],
 ): number {
-  const gap = px(toMillimetres(marginLength, fontSizeMm), ctx)
+  const gap = toPixels(toMillimetres(marginLength, fontSizeMm))
   if (gap <= 0) return offset
   builder.addPlaceholder(
     gap,
@@ -243,7 +243,7 @@ function placeBackgrounds(
     const background = range.style.background
     if (!background) continue
     const outset = resolveOutset(background.outset, fontSizeMm)
-    const radius = px(toMillimetres(background.corners?.bottomRight), ctx)
+    const radius = toPixels(toMillimetres(background.corners?.bottomRight))
     const capHeight = capHeightPx(ctx, range.style, fontSizeMm)
     for (const { rect } of shaped.paragraph.getRectsForRange(
       range.start,
@@ -255,10 +255,10 @@ function placeBackgrounds(
       const line = lineAt(lines, midY)
       const baseline = originY + (line?.baseline ?? 0)
       placed.push({
-        left: originX + rect[0] - px(outset.left, ctx),
-        top: baseline - capHeight - px(outset.top, ctx),
-        right: originX + rect[2] + px(outset.right, ctx),
-        bottom: baseline + px(outset.bottom, ctx),
+        left: originX + rect[0] - toPixels(outset.left),
+        top: baseline - capHeight - toPixels(outset.top),
+        right: originX + rect[2] + toPixels(outset.right),
+        bottom: baseline + toPixels(outset.bottom),
         radius,
         fill: background.fill,
       })
@@ -287,7 +287,6 @@ function placeImages(shaped: ShapedParagraph, originX: number, originY: number):
   return placed
 }
 
-const px = (mm: number, ctx: RenderContext) => mm * ctx.scale
 
 const lineAt = (lines: ReturnType<Paragraph["getLineMetrics"]>, y: number) =>
   lines.find((line) => y >= line.baseline - line.ascent && y <= line.baseline + line.descent) ??
@@ -295,7 +294,7 @@ const lineAt = (lines: ReturnType<Paragraph["getLineMetrics"]>, y: number) =>
 
 const capHeightPx = (ctx: RenderContext, style: Style, fontSizeMm: number) =>
   (ctx.capRatios.get(style.fontFamily ?? DEFAULT_FONT_FAMILY) ?? FALLBACK_CAP_RATIO) *
-  px(fontSizeMm, ctx)
+  toPixels(fontSizeMm)
 
 function capTop(
   ctx: RenderContext,
@@ -333,12 +332,12 @@ const toTextStyle = (ctx: RenderContext, style: Style, fontSizeMm: number): CkTe
   new ctx.ck.TextStyle({
     color: toColor(ctx, style.color ?? "#000000", style.opacity ?? 1),
     fontFamilies: [style.fontFamily ?? DEFAULT_FONT_FAMILY],
-    fontSize: px(fontSizeMm, ctx),
+    fontSize: toPixels(fontSizeMm),
     fontStyle: {
       weight: toFontWeight(ctx, style.fontWeight),
       slant: style.fontStyle === "italic" ? ctx.ck.FontSlant.Italic : ctx.ck.FontSlant.Upright,
     },
-    letterSpacing: px(toMillimetres(style.letterSpacing), ctx),
+    letterSpacing: toPixels(toMillimetres(style.letterSpacing)),
     heightMultiplier: style.lineHeight,
     halfLeading: true,
   })

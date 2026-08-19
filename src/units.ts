@@ -1,6 +1,9 @@
 const PX_PER_INCH = 96
 const PT_PER_INCH = 72
 const MM_PER_INCH = 25.4
+const PX_PER_MM = 16
+
+export const toPixels = (mm: number): number => mm * PX_PER_MM
 
 export function toMillimetres(value: string | number | undefined, emInMm = 0): number {
   if (value == null) return 0

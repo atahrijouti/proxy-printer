@@ -25,7 +25,6 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 1 captain hook - thinking a happy thought
 1 aladdin - heroic outlaw
 1 jasmine - queen of agrabah`
-const TEXT_SCALE = 16
 const DB_URL_DEBOUNCE_MS = 500
 const DECK_DEBOUNCE_MS = 300
 const FILE_NAME = "proxies.pdf"
@@ -90,7 +89,6 @@ async function prepareData(db: DB): Promise<Data> {
       ...resources,
       styles: db.presentation?.styles ?? {},
       symbols: db.symbols ?? {},
-      scale: TEXT_SCALE,
     },
     rendered: new Map(),
   }
