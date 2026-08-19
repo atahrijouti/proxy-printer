@@ -35,14 +35,3 @@ also shows a live on-screen preview that reflects the PDF. The page layout — p
 size, margins, card size, corner radius, and grid — is defined by the printer and
 baked into the PDF; the run paginates across pages, and the same tooling can render a
 card-back page (the grid filled with the DB's back image).
-
-## Footnotes (divergences from earlier printers)
-
-1. **Determinism.** html-printer renders via the browser's own HTML/CSS + print, so its
-   output varies by browser/OS — the divergence that motivated making byte-identical
-   output a goal in the first place. (svg-printer builds the PDF itself, so it isn't
-   subject to this.)
-2. **Painter's order (svg-printer).** svg-printer batches its draw output by category
-   (images, then background boxes, then text) instead of one ordered op-list, so overlay
-   order is honored only where images precede text — true for every current card, but an
-   arbitrary image-over-text interleave wouldn't stack in array order.
