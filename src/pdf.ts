@@ -1,9 +1,10 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone"
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
-import { CARDS_PER_PAGE, COLUMNS, MARGIN_MM } from "./page"
+import { CARDS_PER_PAGE, COLUMNS, PAGE_HEIGHT_MM, PAGE_PADDING_MM, PAGE_WIDTH_MM } from "./page"
 import type { Layer } from "./render"
 import { toPoints } from "./units"
 
+const PAGE_SIZE = [toPoints(PAGE_WIDTH_MM), toPoints(PAGE_HEIGHT_MM)]
 const EPOCH = new Date(0)
 
 export async function buildPdf(cards: Layer[][]): Promise<Blob> {
@@ -12,7 +13,7 @@ export async function buildPdf(cards: Layer[][]): Promise<Blob> {
   await Promise.all(artUrls.map(async (url) => artData.set(url, await fetchDataUrl(url))))
 
   const doc = new PDFDocument({
-    size: "A4",
+    size: PAGE_SIZE,
     margin: 0,
     info: { CreationDate: EPOCH, ModDate: EPOCH },
   })
@@ -27,9 +28,9 @@ export async function buildPdf(cards: Layer[][]): Promise<Blob> {
   const r = toPoints(CARD_RADIUS_MM)
   cards.forEach((layers, index) => {
     const slot = index % CARDS_PER_PAGE
-    if (index > 0 && slot === 0) doc.addPage({ size: "A4", margin: 0 })
-    const x = toPoints(MARGIN_MM + (slot % COLUMNS) * CARD_WIDTH_MM)
-    const y = toPoints(MARGIN_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM)
+    if (index > 0 && slot === 0) doc.addPage({ size: PAGE_SIZE, margin: 0 })
+    const x = toPoints(PAGE_PADDING_MM + (slot % COLUMNS) * CARD_WIDTH_MM)
+    const y = toPoints(PAGE_PADDING_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM)
     doc.save()
     doc.roundedRect(x, y, w, h, r).clip()
     for (const layer of layers) {

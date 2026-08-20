@@ -1,5 +1,5 @@
 import { For, type Component } from "solid-js"
-import { CARDS_PER_PAGE, documentStyle } from "./page"
+import { CARDS_PER_PAGE, embeddedStyles } from "./page"
 import type { RenderedCard } from "./printer"
 
 function toPages(cards: RenderedCard[]): RenderedCard[][] {
@@ -10,9 +10,12 @@ function toPages(cards: RenderedCard[]): RenderedCard[][] {
 }
 
 export const Document: Component<{ cards: RenderedCard[] }> = (props) => (
-  <div class="document" style={documentStyle}>
-    <For each={toPages(props.cards)}>{(page) => <Page cards={page} />}</For>
-  </div>
+  <>
+    <style>{embeddedStyles}</style>
+    <div class="document">
+      <For each={toPages(props.cards)}>{(page) => <Page cards={page} />}</For>
+    </div>
+  </>
 )
 
 const Page: Component<{ cards: RenderedCard[] }> = (props) => (
