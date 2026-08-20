@@ -35,27 +35,27 @@ export interface PlacedBackground {
   fill: string
 }
 
-export interface PlacedImage {
+export interface PlacedInlineImage {
   src: string
   x: number
   y: number
   width: number
   height: number
 }
-export interface Layout {
+export interface TextLayout {
   backgrounds: PlacedBackground[]
   paragraphs: PlacedParagraph[]
-  images: PlacedImage[]
+  inlineImages: PlacedInlineImage[]
 }
 
-export function layoutOverlay(ctx: RenderContext, composed: ComposedText): Layout {
-  const layout: Layout = { backgrounds: [], paragraphs: [], images: [] }
-  if (composed.mode === "block") layoutBlock(ctx, composed, layout)
-  else layoutInline(ctx, composed, layout)
+export function layoutText(ctx: RenderContext, composed: ComposedText): TextLayout {
+  const layout: TextLayout = { backgrounds: [], paragraphs: [], inlineImages: [] }
+  if (composed.mode === "block") layoutBlockText(ctx, composed, layout)
+  else layoutInlineText(ctx, composed, layout)
   return layout
 }
 
-function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout) {
+function layoutInlineText(ctx: RenderContext, composed: ComposedText, layout: TextLayout) {
   const fontSizeMm = toMillimetres(composed.style.fontSize)
   const spans = composed.content[0] ?? []
   const shaped = buildParagraph(
@@ -75,7 +75,7 @@ function layoutInline(ctx: RenderContext, composed: ComposedText, layout: Layout
   placeParagraph(layout, ctx, shaped, x, y, fontSizeMm)
 }
 
-function layoutBlock(ctx: RenderContext, composed: ComposedText, layout: Layout) {
+function layoutBlockText(ctx: RenderContext, composed: ComposedText, layout: TextLayout) {
   const boxX = toPixels(composed.boxXMm)
   const boxHeightPx = toPixels(composed.boxHeightMm)
   const wrapWidth = toPixels(composed.boxWidthMm)
@@ -147,7 +147,7 @@ function buildParagraph(
 
   let offset = 0
   for (const span of spans)
-    offset = addSpan(ctx, builder, span, fontSizeMm, offset, placeholders, backgrounds)
+    offset = layoutSpan(ctx, builder, span, fontSizeMm, offset, placeholders, backgrounds)
 
   const paragraph = builder.build()
   builder.delete()
@@ -155,7 +155,7 @@ function buildParagraph(
   return { paragraph, placeholders, backgrounds }
 }
 
-function addSpan(
+function layoutSpan(
   ctx: RenderContext,
   builder: ParagraphBuilder,
   span: Span,
@@ -184,7 +184,7 @@ function addSpan(
     return offset + 1
   }
 
-  offset = addMargin(ctx, builder, span.style.margin?.before, fontSizeMm, offset, placeholders)
+  offset = layoutMargin(ctx, builder, span.style.margin?.before, fontSizeMm, offset, placeholders)
   const text = span.style.uppercase ? span.text.toUpperCase() : span.text
   builder.pushStyle(toTextStyle(ctx, span.style, fontSizeMm))
   builder.addText(text)
@@ -193,10 +193,10 @@ function addSpan(
   offset += text.length
 
   if (span.style.background) backgrounds.push({ start, end: offset, style: span.style })
-  return addMargin(ctx, builder, span.style.margin?.after, fontSizeMm, offset, placeholders)
+  return layoutMargin(ctx, builder, span.style.margin?.after, fontSizeMm, offset, placeholders)
 }
 
-function addMargin(
+function layoutMargin(
   ctx: RenderContext,
   builder: ParagraphBuilder,
   marginLength: string | undefined,
@@ -218,7 +218,7 @@ function addMargin(
 }
 
 function placeParagraph(
-  layout: Layout,
+  layout: TextLayout,
   ctx: RenderContext,
   shaped: ShapedParagraph,
   x: number,
@@ -227,7 +227,7 @@ function placeParagraph(
 ) {
   layout.paragraphs.push({ paragraph: shaped.paragraph, x, y })
   layout.backgrounds.push(...placeBackgrounds(ctx, shaped, x, y, fontSizeMm))
-  layout.images.push(...placeImages(shaped, x, y))
+  layout.inlineImages.push(...placeInlineImages(shaped, x, y))
 }
 
 function placeBackgrounds(
@@ -267,9 +267,13 @@ function placeBackgrounds(
   return placed
 }
 
-function placeImages(shaped: ShapedParagraph, originX: number, originY: number): PlacedImage[] {
+function placeInlineImages(
+  shaped: ShapedParagraph,
+  originX: number,
+  originY: number,
+): PlacedInlineImage[] {
   const lines = shaped.paragraph.getLineMetrics()
-  const placed: PlacedImage[] = []
+  const placed: PlacedInlineImage[] = []
   shaped.paragraph.getRectsForPlaceholders().forEach(({ rect }, i) => {
     const inlineImage = shaped.placeholders[i]
     if (!inlineImage) return

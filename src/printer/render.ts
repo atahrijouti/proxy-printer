@@ -2,7 +2,7 @@ import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
 import { symbolImage, toColor, type RenderContext } from "./resources"
-import { layoutOverlay, type Layout, type PlacedImage } from "./layout"
+import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
 import type { Card, Overlay } from "./types"
 import { toPixels } from "./units"
 
@@ -37,8 +37,8 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
     const canvas = surface.getCanvas()
     canvas.clear(ctx.ck.TRANSPARENT)
     for (const overlay of overlays) {
-      const layout = layoutOverlay(ctx, composeText(overlay, ctx.styles, ctx.symbols))
-      drawLayout(canvas, ctx, layout)
+      const layout = layoutText(ctx, composeText(overlay, ctx.styles, ctx.symbols))
+      drawTextLayout(canvas, ctx, layout)
     }
     surface.flush()
     const image = surface.makeImageSnapshot()
@@ -54,7 +54,7 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   }
 }
 
-function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
+function drawTextLayout(canvas: Canvas, ctx: RenderContext, layout: TextLayout) {
   try {
     for (const background of layout.backgrounds) {
       const paint = new ctx.ck.Paint()
@@ -65,13 +65,13 @@ function drawLayout(canvas: Canvas, ctx: RenderContext, layout: Layout) {
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
-    for (const inlineImage of layout.images) drawImageBox(canvas, ctx, inlineImage)
+    for (const inlineImage of layout.inlineImages) drawInlineImage(canvas, ctx, inlineImage)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
 }
 
-function drawImageBox(canvas: Canvas, ctx: RenderContext, placed: PlacedImage) {
+function drawInlineImage(canvas: Canvas, ctx: RenderContext, placed: PlacedInlineImage) {
   const { src, x, y, width, height } = placed
 
   const image = symbolImage(ctx, src, height)
