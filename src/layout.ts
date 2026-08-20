@@ -287,7 +287,6 @@ function placeImages(shaped: ShapedParagraph, originX: number, originY: number):
   return placed
 }
 
-
 const lineAt = (lines: ReturnType<Paragraph["getLineMetrics"]>, y: number) =>
   lines.find((line) => y >= line.baseline - line.ascent && y <= line.baseline + line.descent) ??
   lines[0]
