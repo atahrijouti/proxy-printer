@@ -1,4 +1,4 @@
-import { For, type Component } from "solid-js"
+import { Index, type Component } from "solid-js"
 import { CARDS_PER_PAGE, embeddedStyles } from "./page"
 import type { RenderedCard } from "./printer"
 
@@ -13,19 +13,21 @@ export const Document: Component<{ cards: RenderedCard[] }> = (props) => (
   <>
     <style>{embeddedStyles}</style>
     <div class="document">
-      <For each={toPages(props.cards)}>{(page) => <Page cards={page} />}</For>
+      <Index each={toPages(props.cards)}>{(page) => <Page cards={page()} />}</Index>
     </div>
   </>
 )
 
 const Page: Component<{ cards: RenderedCard[] }> = (props) => (
   <div class="page">
-    <For each={props.cards}>{(card) => <CardComponent card={card} />}</For>
+    <Index each={props.cards}>{(card) => <CardComponent card={card()} />}</Index>
   </div>
 )
 
 const CardComponent: Component<{ card: RenderedCard }> = (props) => (
   <div class="card" data-card-id={props.card.id}>
-    <For each={props.card.layers}>{(layer) => <img class="layer" src={layer.src} alt="" />}</For>
+    <Index each={props.card.layers}>
+      {(layer) => <img class="layer" src={layer().src} alt="" />}
+    </Index>
   </div>
 )
