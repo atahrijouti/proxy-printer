@@ -1,11 +1,9 @@
 import PDFDocument from "pdfkit/js/pdfkit.standalone"
 import { CARD_HEIGHT_MM, CARD_RADIUS_MM, CARD_WIDTH_MM } from "./card"
-import { CARDS_PER_PAGE, COLUMNS } from "./page"
+import { CARDS_PER_PAGE, COLUMNS, MARGIN_MM } from "./page"
 import type { Layer } from "./render"
 import { toPoints } from "./units"
 
-const MARGIN_X_MM = 10.5
-const MARGIN_Y_MM = 16.5
 const EPOCH = new Date(0)
 
 export async function buildPdf(cards: Layer[][]): Promise<Blob> {
@@ -30,8 +28,8 @@ export async function buildPdf(cards: Layer[][]): Promise<Blob> {
   cards.forEach((layers, index) => {
     const slot = index % CARDS_PER_PAGE
     if (index > 0 && slot === 0) doc.addPage({ size: "A4", margin: 0 })
-    const x = toPoints(MARGIN_X_MM + (slot % COLUMNS) * CARD_WIDTH_MM)
-    const y = toPoints(MARGIN_Y_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM)
+    const x = toPoints(MARGIN_MM + (slot % COLUMNS) * CARD_WIDTH_MM)
+    const y = toPoints(MARGIN_MM + Math.floor(slot / COLUMNS) * CARD_HEIGHT_MM)
     doc.save()
     doc.roundedRect(x, y, w, h, r).clip()
     for (const layer of layers) {

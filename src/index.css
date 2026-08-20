@@ -32,10 +32,13 @@
 }
 
 .page {
+  width: var(--page-width);
+  height: var(--page-height);
+  padding: var(--page-margin) 0 0 var(--page-margin);
   display: grid;
-  grid-template-columns: repeat(3, 63mm);
+  grid-template-columns: repeat(var(--columns), var(--card-width));
+  grid-auto-rows: var(--card-height);
   gap: 0;
-  padding: 10mm;
 }
 
 .page + .page {
@@ -44,9 +47,9 @@
 
 .card {
   position: relative;
-  width: 63mm;
-  height: 88mm;
-  border-radius: 2mm;
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: var(--card-radius);
   overflow: hidden;
 }
 
@@ -55,6 +58,11 @@
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+@page {
+  size: A4;
+  margin: 0;
 }
 
 @media print {
