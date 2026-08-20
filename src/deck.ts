@@ -1,7 +1,5 @@
 import type { Card } from "./types"
 
-const BACKS_PER_PAGE = 9
-
 export function selectFromDeck(cards: Card[], deck: string): Card[] {
   if (!cards.length) return []
   if (deck.trim() === "") return cards
@@ -16,7 +14,7 @@ export function selectFromDeck(cards: Card[], deck: string): Card[] {
   return out
 }
 
-export function cardBacks(cardBack: string | undefined): Card[] {
+export function cardBacks(cardBack: string | undefined, count: number): Card[] {
   if (!cardBack) return []
-  return Array.from({ length: BACKS_PER_PAGE }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
+  return Array.from({ length: count }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
 }

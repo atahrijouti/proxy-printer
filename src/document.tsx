@@ -1,7 +1,6 @@
 import { For, type Component } from "solid-js"
+import { CARDS_PER_PAGE } from "./page"
 import type { RenderedCard } from "./printer"
-
-export const CARDS_PER_PAGE = 9
 
 function toPages(cards: RenderedCard[]): RenderedCard[][] {
   const pages: RenderedCard[][] = []

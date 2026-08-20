@@ -4,6 +4,7 @@ import { fetchDb, prepareDb, type PreparedDb } from "./db"
 import { cardBacks, selectFromDeck } from "./deck"
 import { debounced } from "./debounce"
 import { downloadBlob } from "./download"
+import { CARDS_PER_PAGE } from "./page"
 import { buildPdf } from "./pdf"
 import { cardLayers, type Layer } from "./render"
 import type { Card } from "./types"
@@ -64,7 +65,7 @@ export function createPrinter(): Printer {
     resource.state === "ready" ? resource() : undefined
 
   const cards = (db: PreparedDb): Card[] =>
-    settings.cardBacks ? cardBacks(db.cardBack) : selectFromDeck(db.cards, deck())
+    settings.cardBacks ? cardBacks(db.cardBack, CARDS_PER_PAGE) : selectFromDeck(db.cards, deck())
 
   const renderCache = createMemo(() => {
     preparedDb()
