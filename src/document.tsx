@@ -1,6 +1,6 @@
 import { Index, type Component } from "solid-js"
 import { CARDS_PER_PAGE, embeddedStyles } from "./printer/page"
-import type { RenderedCard } from "./printer/printer"
+import type { RenderedCard } from "./printer"
 
 function toPages(cards: RenderedCard[]): RenderedCard[][] {
   const pages: RenderedCard[][] = []

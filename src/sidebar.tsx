@@ -1,5 +1,5 @@
 import { Show, type Component } from "solid-js"
-import type { Printer } from "./printer/printer"
+import type { Printer } from "./printer"
 
 export const Sidebar: Component<{ printer: Printer }> = (props) => {
   const { settings, setSettings, status, ready, building, downloadPdf } = props.printer
