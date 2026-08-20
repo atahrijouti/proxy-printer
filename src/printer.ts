@@ -1,12 +1,12 @@
 import { createMemo, createResource, createSignal, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
+import { fetchDb, prepareDb, type PreparedDb } from "./db"
 import { cardBacks, selectFromDeck } from "./deck"
 import { debounced } from "./debounce"
 import { downloadBlob } from "./download"
 import { buildPdf } from "./pdf"
 import { cardLayers, type Layer } from "./render"
-import { loadResources, type RenderContext } from "./resources"
-import type { Card, DB } from "./types"
+import type { Card } from "./types"
 
 const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
 
@@ -44,39 +44,8 @@ export interface Printer {
   downloadPdf: () => Promise<void>
 }
 
-interface Data {
-  cards: Card[]
-  cardBack?: string
-  ctx: RenderContext
-  rendered: Map<string, RenderedCard>
-}
-
 const toMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
-
-function symbolUrls(db: DB): string[] {
-  return [...new Set(Object.values(db.symbols ?? {}))]
-}
-
-async function fetchDb(url: string): Promise<DB> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
-  return (await response.json()) as DB
-}
-
-async function prepareData(db: DB): Promise<Data> {
-  const resources = await loadResources(db.presentation?.fonts ?? [], symbolUrls(db))
-  return {
-    cards: db.cards,
-    cardBack: db.cardBack,
-    ctx: {
-      ...resources,
-      styles: db.presentation?.styles ?? {},
-      symbols: db.symbols ?? {},
-    },
-    rendered: new Map(),
-  }
-}
 
 export function createPrinter(): Printer {
   const [settings, setSettings] = createStore<Settings>({
@@ -87,28 +56,35 @@ export function createPrinter(): Printer {
   const [building, setBuilding] = createSignal(false)
   const [buildError, setBuildError] = createSignal("")
 
-  const urlSettled = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
-  const deckSettled = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
-  const [resource] = createResource(urlSettled, async (url) => prepareData(await fetchDb(url)))
+  const dbUrl = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
+  const deck = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
+  const [resource] = createResource(dbUrl, async (value) => prepareDb(await fetchDb(value)))
 
-  const resourceData = (): Data | undefined => (resource.state === "ready" ? resource() : undefined)
+  const preparedDb = (): PreparedDb | undefined =>
+    resource.state === "ready" ? resource() : undefined
 
-  const cards = (data: Data): Card[] =>
-    settings.cardBacks ? cardBacks(data.cardBack) : selectFromDeck(data.cards, deckSettled())
+  const cards = (db: PreparedDb): Card[] =>
+    settings.cardBacks ? cardBacks(db.cardBack) : selectFromDeck(db.cards, deck())
+
+  const renderCache = createMemo(() => {
+    preparedDb()
+    return new Map<string, RenderedCard>()
+  })
 
   const renderedCards = createMemo<RenderedCard[]>(() => {
-    const data = resourceData()
-    if (!data) return []
-    return cards(data).map((card) => {
-      const cached = data.rendered.get(card.id)
+    const db = preparedDb()
+    if (!db) return []
+    const cache = renderCache()
+    return cards(db).map((card) => {
+      const cached = cache.get(card.id)
       if (cached) return cached
-      const rendered: RenderedCard = { id: card.id, layers: cardLayers(data.ctx, card) }
-      data.rendered.set(card.id, rendered)
+      const rendered: RenderedCard = { id: card.id, layers: cardLayers(db.ctx, card) }
+      cache.set(card.id, rendered)
       return rendered
     })
   })
 
-  const ready = () => resourceData() !== undefined
+  const ready = () => preparedDb() !== undefined
 
   const status = () => {
     if (resource.loading) return "Loading…"
@@ -133,4 +109,3 @@ export function createPrinter(): Printer {
 
   return { settings, setSettings, status, ready, building, renderedCards, downloadPdf }
 }
-
