@@ -4,7 +4,7 @@ import type { Component } from "solid-js"
 
 import "./index.css"
 import { Document } from "./document"
-import { createPrinter } from "./printer"
+import { createPrinter } from "./printer/printer"
 import { Sidebar } from "./sidebar"
 
 const App: Component = () => {
