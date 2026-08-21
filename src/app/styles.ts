@@ -6,7 +6,7 @@ import {
   PAGE_HEIGHT,
   PAGE_PADDING,
   PAGE_WIDTH,
-} from "./printer/page"
+} from "../printer/page"
 
 const mm = (value: number): string => `${value}mm`
 

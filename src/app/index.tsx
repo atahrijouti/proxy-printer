@@ -2,9 +2,9 @@
 import { render } from "solid-js/web"
 import type { Component } from "solid-js"
 
-import "./index.css"
+import "./styles.css"
 import { Document } from "./document"
-import { createPrinter } from "./printer"
+import { createPrinter } from "../printer"
 import { Sidebar } from "./sidebar"
 
 const App: Component = () => {

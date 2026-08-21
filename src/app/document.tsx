@@ -1,6 +1,7 @@
 import { Index, type Component } from "solid-js"
-import { CARDS_PER_PAGE, embeddedStyles } from "./printer/page"
-import type { RenderedCard } from "./printer"
+import { embeddedStyles } from "./styles"
+import { CARDS_PER_PAGE } from "../printer/page"
+import type { RenderedCard } from "../printer"
 
 function paginate(cards: RenderedCard[]): RenderedCard[][] {
   const pages: RenderedCard[][] = []
