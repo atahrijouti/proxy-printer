@@ -3,6 +3,7 @@ import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url"
 import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
+import { fetchBytes } from "../utils/fetch-bytes"
 import type { FontFace, Style, Symbols } from "./types"
 
 interface SvgFonts {
@@ -44,13 +45,7 @@ const canvasKit = () => (canvasKitReady ??= CanvasKitInit({ locateFile: () => wa
 let resvgReady: Promise<void> | null = null
 const resvgWasm = () => (resvgReady ??= initResvg(fetch(resvgWasmUrl)))
 
-async function fetchBytes(url: string): Promise<Uint8Array> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`fetch failed (${response.status}): ${url}`)
-  return new Uint8Array(await response.arrayBuffer())
-}
-
-async function loadSymbol(ck: CanvasKit, url: string): Promise<SymbolSource> {
+async function loadSymbolSource(ck: CanvasKit, url: string): Promise<SymbolSource> {
   const bytes = await fetchBytes(url)
   const native = ck.MakeImageFromEncoded(bytes)
   if (native) return { kind: "raster", aspect: native.width() / native.height(), image: native }
@@ -76,7 +71,11 @@ function bucketHeight(heightPx: number): number {
   return size
 }
 
-export function symbolImage(resources: Resources, url: string, heightPx: number): Image | null {
+export function symbolImageForHeight(
+  resources: Resources,
+  url: string,
+  heightPx: number,
+): Image | null {
   const source = resources.symbolSources.get(url)
   if (!source) return null
   if (source.kind === "raster") return source.image
@@ -86,12 +85,12 @@ export function symbolImage(resources: Resources, url: string, heightPx: number)
   const cached = resources.rasters.get(key)
   if (cached) return cached
 
-  const image = rasterize(resources, source.svg, height)
+  const image = rasterizeSvg(resources, source.svg, height)
   resources.rasters.set(key, image)
   return image
 }
 
-function rasterize(resources: Resources, svg: Uint8Array, heightPx: number): Image {
+function rasterizeSvg(resources: Resources, svg: Uint8Array, heightPx: number): Image {
   const renderer = new Resvg(svg, {
     fitTo: { mode: "height", value: heightPx },
     font: resources.svgFonts,
@@ -157,7 +156,9 @@ export async function loadResources(fonts: FontFace[], symbolUrls: string[]): Pr
 
   const symbolSources = new Map<string, SymbolSource>()
   await Promise.all(
-    [...new Set(symbolUrls)].map(async (url) => symbolSources.set(url, await loadSymbol(ck, url))),
+    [...new Set(symbolUrls)].map(async (url) =>
+      symbolSources.set(url, await loadSymbolSource(ck, url)),
+    ),
   )
 
   return {

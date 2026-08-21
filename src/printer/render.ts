@@ -1,7 +1,7 @@
 import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
-import { symbolImage, toColor, type RenderContext } from "./resources"
+import { symbolImageForHeight, toColor, type RenderContext } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
 import type { Card, Overlay } from "./types"
 import { toPixels } from "./units"
@@ -74,7 +74,7 @@ function drawTextLayout(canvas: Canvas, ctx: RenderContext, layout: TextLayout) 
 function drawInlineImage(canvas: Canvas, ctx: RenderContext, placed: PlacedInlineImage) {
   const { src, x, y, width, height } = placed
 
-  const image = symbolImage(ctx, src, height)
+  const image = symbolImageForHeight(ctx, src, height)
   if (!image) return
   const paint = new ctx.ck.Paint()
   canvas.drawImageRectOptions(
