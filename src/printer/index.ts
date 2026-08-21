@@ -79,7 +79,10 @@ export function createPrinter(): Printer {
     return cards(db).map((card) => {
       const cached = cache.get(card.id)
       if (cached) return cached
-      const rendered: RenderedCard = { id: card.id, layers: cardLayers(db.ctx, card) }
+      const rendered: RenderedCard = {
+        id: card.id,
+        layers: cardLayers(db.resources, db.styles, db.symbols, card),
+      }
       cache.set(card.id, rendered)
       return rendered
     })

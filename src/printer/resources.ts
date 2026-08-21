@@ -4,7 +4,7 @@ import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import { fetchBytes } from "../utils/fetch-bytes"
-import type { FontFace, Style, Symbols } from "./types"
+import type { FontFace } from "./types"
 
 interface SvgFonts {
   fontBuffers: Uint8Array[]
@@ -24,19 +24,14 @@ export interface Resources {
   capRatios: Map<string, number>
 }
 
-export interface RenderContext extends Resources {
-  styles: Record<string, Style>
-  symbols: Symbols
-}
-
 export const FALLBACK_CAP_RATIO = 0.7
 
 export const INLINE_IMAGE_CAP_RATIO = 1.15
 
-export const toColor = (ctx: Resources, hex: string, opacity = 1) => {
+export const toColor = (resources: Resources, hex: string, opacity = 1) => {
   const value = hex.replace("#", "")
   const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)
-  return ctx.ck.Color(channel(0), channel(2), channel(4), opacity)
+  return resources.ck.Color(channel(0), channel(2), channel(4), opacity)
 }
 
 let canvasKitReady: Promise<CanvasKit> | null = null

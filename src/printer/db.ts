@@ -1,10 +1,12 @@
-import { loadResources, type RenderContext } from "./resources"
-import type { Card, DB } from "./types"
+import { loadResources, type Resources } from "./resources"
+import type { Card, DB, Style, Symbols } from "./types"
 
 export interface PreparedDb {
   cards: Card[]
   cardBack?: string
-  ctx: RenderContext
+  resources: Resources
+  styles: Record<string, Style>
+  symbols: Symbols
 }
 
 function symbolUrls(db: DB): string[] {
@@ -18,14 +20,11 @@ export async function fetchDb(url: string): Promise<DB> {
 }
 
 export async function prepareDb(db: DB): Promise<PreparedDb> {
-  const resources = await loadResources(db.presentation?.fonts ?? [], symbolUrls(db))
   return {
     cards: db.cards,
     cardBack: db.cardBack,
-    ctx: {
-      ...resources,
-      styles: db.presentation?.styles ?? {},
-      symbols: db.symbols ?? {},
-    },
+    resources: await loadResources(db.presentation?.fonts ?? [], symbolUrls(db)),
+    styles: db.presentation?.styles ?? {},
+    symbols: db.symbols ?? {},
   }
 }

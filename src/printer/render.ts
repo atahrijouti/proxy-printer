@@ -1,21 +1,26 @@
 import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
-import { symbolImageForHeight, toColor, type RenderContext } from "./resources"
+import { symbolImageForHeight, toColor, type Resources } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
-import type { Card, Overlay } from "./types"
+import type { Card, Overlay, Style, Symbols } from "./types"
 import { toPixels } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
 export type Layer = { type: "image"; src: string } | { type: "text"; src: string }
 
-export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
+export function cardLayers(
+  resources: Resources,
+  styles: Record<string, Style>,
+  symbols: Symbols,
+  card: Card,
+): Layer[] {
   const layers: Layer[] = [{ type: "image", src: card.image }]
   let run: TextOverlay[] = []
   const flush = () => {
     if (run.length === 0) return
-    layers.push({ type: "text", src: rasterizeText(ctx, run) })
+    layers.push({ type: "text", src: rasterizeText(resources, styles, symbols, run) })
     run = []
   }
   for (const overlay of card.overlays ?? []) {
@@ -30,15 +35,20 @@ export function cardLayers(ctx: RenderContext, card: Card): Layer[] {
   return layers
 }
 
-function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
-  const surface = ctx.ck.MakeSurface(toPixels(CARD_WIDTH_MM), toPixels(CARD_HEIGHT_MM))
+function rasterizeText(
+  resources: Resources,
+  styles: Record<string, Style>,
+  symbols: Symbols,
+  overlays: TextOverlay[],
+): string {
+  const surface = resources.ck.MakeSurface(toPixels(CARD_WIDTH_MM), toPixels(CARD_HEIGHT_MM))
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()
-    canvas.clear(ctx.ck.TRANSPARENT)
+    canvas.clear(resources.ck.TRANSPARENT)
     for (const overlay of overlays) {
-      const layout = layoutText(ctx, composeText(overlay, ctx.styles, ctx.symbols))
-      drawTextLayout(canvas, ctx, layout)
+      const layout = layoutText(resources, composeText(overlay, styles, symbols))
+      drawTextLayout(canvas, resources, layout)
     }
     surface.flush()
     const image = surface.makeImageSnapshot()
@@ -54,35 +64,35 @@ function rasterizeText(ctx: RenderContext, overlays: TextOverlay[]): string {
   }
 }
 
-function drawTextLayout(canvas: Canvas, ctx: RenderContext, layout: TextLayout) {
+function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout) {
   try {
     for (const background of layout.backgrounds) {
-      const paint = new ctx.ck.Paint()
-      paint.setColor(toColor(ctx, background.fill))
+      const paint = new resources.ck.Paint()
+      paint.setColor(toColor(resources, background.fill))
       paint.setAntiAlias(true)
       const { left, top, right, bottom, radius } = background
       canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
-    for (const inlineImage of layout.inlineImages) drawInlineImage(canvas, ctx, inlineImage)
+    for (const inlineImage of layout.inlineImages) drawInlineImage(canvas, resources, inlineImage)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
 }
 
-function drawInlineImage(canvas: Canvas, ctx: RenderContext, placed: PlacedInlineImage) {
+function drawInlineImage(canvas: Canvas, resources: Resources, placed: PlacedInlineImage) {
   const { src, x, y, width, height } = placed
 
-  const image = symbolImageForHeight(ctx, src, height)
+  const image = symbolImageForHeight(resources, src, height)
   if (!image) return
-  const paint = new ctx.ck.Paint()
+  const paint = new resources.ck.Paint()
   canvas.drawImageRectOptions(
     image,
-    ctx.ck.LTRBRect(0, 0, image.width(), image.height()),
-    ctx.ck.LTRBRect(x, y, x + width, y + height),
-    ctx.ck.FilterMode.Linear,
-    ctx.ck.MipmapMode.None,
+    resources.ck.LTRBRect(0, 0, image.width(), image.height()),
+    resources.ck.LTRBRect(x, y, x + width, y + height),
+    resources.ck.FilterMode.Linear,
+    resources.ck.MipmapMode.None,
     paint,
   )
   paint.delete()
