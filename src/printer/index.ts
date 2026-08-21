@@ -2,7 +2,7 @@ import { createMemo, createResource, createSignal, type Accessor } from "solid-j
 import { createStore } from "solid-js/store"
 import { fetchDb, prepareDb, type PreparedDb } from "./db"
 import { cardBacks, selectFromDeck } from "./deck"
-import { debounced } from "../utils/debounce"
+import { createDebounced } from "../utils/debounce"
 import { downloadBlob } from "../utils/download"
 import { CARDS_PER_PAGE } from "./page"
 import { buildPdf } from "./pdf"
@@ -57,8 +57,8 @@ export function createPrinter(): Printer {
   const [building, setBuilding] = createSignal(false)
   const [buildError, setBuildError] = createSignal("")
 
-  const dbUrl = debounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
-  const deck = debounced(() => settings.deck, DECK_DEBOUNCE_MS)
+  const dbUrl = createDebounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
+  const deck = createDebounced(() => settings.deck, DECK_DEBOUNCE_MS)
   const [resource] = createResource(dbUrl, async (value) => prepareDb(await fetchDb(value)))
 
   const preparedDb = (): PreparedDb | undefined =>

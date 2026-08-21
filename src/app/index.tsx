@@ -12,7 +12,7 @@ const App: Component = () => {
 
   return (
     <>
-      <Sidebar printer={printer} />
+      <Sidebar {...printer} />
       <main>
         <Document cards={printer.renderedCards()} />
       </main>
