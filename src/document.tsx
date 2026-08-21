@@ -2,7 +2,7 @@ import { Index, type Component } from "solid-js"
 import { CARDS_PER_PAGE, embeddedStyles } from "./printer/page"
 import type { RenderedCard } from "./printer"
 
-function toPages(cards: RenderedCard[]): RenderedCard[][] {
+function paginate(cards: RenderedCard[]): RenderedCard[][] {
   const pages: RenderedCard[][] = []
   for (let i = 0; i < cards.length; i += CARDS_PER_PAGE)
     pages.push(cards.slice(i, i + CARDS_PER_PAGE))
@@ -13,7 +13,7 @@ export const Document: Component<{ cards: RenderedCard[] }> = (props) => (
   <>
     <style>{embeddedStyles}</style>
     <div class="document">
-      <Index each={toPages(props.cards)}>{(page) => <Page cards={page()} />}</Index>
+      <Index each={paginate(props.cards)}>{(page) => <Page cards={page()} />}</Index>
     </div>
   </>
 )

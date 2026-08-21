@@ -1,10 +1,10 @@
 import type { Canvas } from "canvaskit-wasm"
 import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
-import { symbolImageForHeight, toColor, type Resources } from "./resources"
+import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
 import type { Card, Overlay, Style, Symbols } from "./types"
-import { toPixels } from "./units"
+import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
@@ -41,7 +41,10 @@ function rasterizeText(
   symbols: Symbols,
   overlays: TextOverlay[],
 ): string {
-  const surface = resources.ck.MakeSurface(toPixels(CARD_WIDTH_MM), toPixels(CARD_HEIGHT_MM))
+  const surface = resources.ck.MakeSurface(
+    pixelsFromMm(CARD_WIDTH_MM),
+    pixelsFromMm(CARD_HEIGHT_MM),
+  )
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()
@@ -68,7 +71,7 @@ function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout
   try {
     for (const background of layout.backgrounds) {
       const paint = new resources.ck.Paint()
-      paint.setColor(toColor(resources, background.fill))
+      paint.setColor(colorFromHex(resources, background.fill))
       paint.setAntiAlias(true)
       const { left, top, right, bottom, radius } = background
       canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)

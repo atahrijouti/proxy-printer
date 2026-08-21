@@ -45,7 +45,7 @@ export interface Printer {
   downloadPdf: () => Promise<void>
 }
 
-const toMessage = (error: unknown): string =>
+const messageFromError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
 export function createPrinter(): Printer {
@@ -93,19 +93,17 @@ export function createPrinter(): Printer {
   const status = () => {
     if (resource.loading) return "Loading…"
     const error: unknown = resource.error
-    if (error) return toMessage(error)
+    if (error) return messageFromError(error)
     return buildError()
   }
-
-  const toPdf = (): Promise<Blob> => buildPdf(renderedCards().map((card) => card.layers))
 
   async function downloadPdf(): Promise<void> {
     setBuilding(true)
     setBuildError("")
     try {
-      downloadBlob(await toPdf(), FILE_NAME)
+      downloadBlob(await buildPdf(renderedCards().map((card) => card.layers)), FILE_NAME)
     } catch (error) {
-      setBuildError(toMessage(error))
+      setBuildError(messageFromError(error))
     } finally {
       setBuilding(false)
     }
