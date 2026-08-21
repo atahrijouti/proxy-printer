@@ -1,33 +1,37 @@
 import { Show, type Component } from "solid-js"
-import type { Printer } from "../printer"
+import { usePrinter } from "./printer-context"
 
-export const Sidebar: Component<Printer> = (props) => (
-  <aside class="controls no-print">
-    <input
-      type="text"
-      value={props.settings.dbUrl}
-      onInput={(event) => props.setSettings("dbUrl", event.currentTarget.value)}
-    />
-    <label>
+export const Sidebar: Component = () => {
+  const { settings, setSettings, status, ready, building, downloadPdf } = usePrinter()
+
+  return (
+    <>
       <input
-        type="checkbox"
-        checked={props.settings.cardBacks}
-        onChange={() => props.setSettings("cardBacks", !props.settings.cardBacks)}
+        type="text"
+        value={settings.dbUrl}
+        onInput={(event) => setSettings("dbUrl", event.currentTarget.value)}
       />
-      Card backs
-    </label>
-    <textarea
-      class="deck"
-      placeholder="1 card id per line — blank prints all"
-      value={props.settings.deck}
-      onInput={(event) => props.setSettings("deck", event.currentTarget.value)}
-      disabled={props.settings.cardBacks}
-    />
-    <button onClick={() => props.downloadPdf()} disabled={!props.ready() || props.building()}>
-      {props.building() ? "Building PDF…" : "Download PDF"}
-    </button>
-    <Show when={props.status()}>
-      <div class="msg">{props.status()}</div>
-    </Show>
-  </aside>
-)
+      <label>
+        <input
+          type="checkbox"
+          checked={settings.cardBacks}
+          onChange={() => setSettings("cardBacks", !settings.cardBacks)}
+        />
+        Card backs
+      </label>
+      <textarea
+        class="deck"
+        placeholder="1 card id per line — blank prints all"
+        value={settings.deck}
+        onInput={(event) => setSettings("deck", event.currentTarget.value)}
+        disabled={settings.cardBacks}
+      />
+      <button onClick={downloadPdf} disabled={!ready() || building()}>
+        {building() ? "Building PDF…" : "Download PDF"}
+      </button>
+      <Show when={status()}>
+        <div class="msg">{status()}</div>
+      </Show>
+    </>
+  )
+}

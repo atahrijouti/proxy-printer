@@ -4,21 +4,19 @@ import type { Component } from "solid-js"
 
 import "./styles.css"
 import { Document } from "./document"
-import { createPrinter } from "../printer"
+import { PrinterProvider } from "./printer-context"
 import { Sidebar } from "./sidebar"
 
-const App: Component = () => {
-  const printer = createPrinter()
-
-  return (
-    <>
-      <Sidebar {...printer} />
-      <main>
-        <Document cards={printer.renderedCards()} />
-      </main>
-    </>
-  )
-}
+const App: Component = () => (
+  <PrinterProvider>
+    <aside class="controls no-print">
+      <Sidebar />
+    </aside>
+    <main>
+      <Document />
+    </main>
+  </PrinterProvider>
+)
 
 const root = document.getElementById("root")
 if (!(root instanceof HTMLElement)) {
