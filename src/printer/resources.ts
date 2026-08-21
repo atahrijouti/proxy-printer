@@ -26,8 +26,6 @@ export interface Resources {
 
 export const FALLBACK_CAP_RATIO = 0.7
 
-export const INLINE_IMAGE_CAP_RATIO = 1.15
-
 export const colorFromHex = (resources: Resources, hex: string, opacity = 1) => {
   const value = hex.replace("#", "")
   const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)

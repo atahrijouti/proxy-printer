@@ -1,5 +1,5 @@
 import type { Canvas } from "canvaskit-wasm"
-import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
+import { CARD_HEIGHT, CARD_WIDTH } from "./page"
 import { composeText } from "./compose"
 import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
@@ -41,10 +41,7 @@ function rasterizeText(
   symbols: Symbols,
   overlays: TextOverlay[],
 ): string {
-  const surface = resources.ck.MakeSurface(
-    pixelsFromMm(CARD_WIDTH_MM),
-    pixelsFromMm(CARD_HEIGHT_MM),
-  )
+  const surface = resources.ck.MakeSurface(pixelsFromMm(CARD_WIDTH), pixelsFromMm(CARD_HEIGHT))
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()

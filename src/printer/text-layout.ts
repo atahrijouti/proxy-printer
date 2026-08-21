@@ -4,15 +4,9 @@ import type {
   TextAlign,
   TextStyle as CkTextStyle,
 } from "canvaskit-wasm"
-import { CARD_WIDTH_MM } from "./card"
+import { CARD_WIDTH } from "./page"
 import type { ComposedText, Span } from "./compose"
-import {
-  FALLBACK_CAP_RATIO,
-  INLINE_IMAGE_CAP_RATIO,
-  symbolAspect,
-  colorFromHex,
-  type Resources,
-} from "./resources"
+import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Resources } from "./resources"
 import type { Style } from "./types"
 import { mmFromLength, pixelsFromMm } from "./units"
 
@@ -20,6 +14,7 @@ const UNBOUNDED_WIDTH_PX = 1e6
 const DEFAULT_FONT_FAMILY = "Bogle"
 const MIN_FONT_RATIO = 0.6
 const SHRINK_STEP_MM = 0.05
+const INLINE_IMAGE_CAP_RATIO = 1.15
 
 export interface PlacedParagraph {
   paragraph: Paragraph
@@ -69,7 +64,7 @@ function layoutInlineText(resources: Resources, composed: ComposedText, layout: 
   const width = shaped.paragraph.getMaxIntrinsicWidth()
   const x =
     composed.style.align === "center"
-      ? (pixelsFromMm(CARD_WIDTH_MM) - width) / 2
+      ? (pixelsFromMm(CARD_WIDTH) - width) / 2
       : pixelsFromMm(composed.boxXMm)
   const y = capTopPx(
     resources,
