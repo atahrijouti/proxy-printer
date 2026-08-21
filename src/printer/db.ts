@@ -1,8 +1,8 @@
 import { loadResources, type Resources } from "./resources"
-import type { Card, DB, Style, Symbols } from "./types"
+import type { CardSpec, DB, Style, Symbols } from "./types"
 
 export interface PreparedDb {
-  cards: Card[]
+  cards: CardSpec[]
   cardBack?: string
   resources: Resources
   styles: Record<string, Style>

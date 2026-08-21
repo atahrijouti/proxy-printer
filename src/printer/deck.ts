@@ -1,9 +1,9 @@
-import type { Card } from "./types"
+import type { CardSpec } from "./types"
 
-export function selectFromDeck(cards: Card[], deck: string): Card[] {
+export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
   if (!cards.length) return []
   if (deck.trim() === "") return cards
-  const out: Card[] = []
+  const out: CardSpec[] = []
   for (const line of deck.split("\n")) {
     const match = line.match(/^(\d+)\s+(.*)$/)
     if (!match) continue
@@ -14,7 +14,7 @@ export function selectFromDeck(cards: Card[], deck: string): Card[] {
   return out
 }
 
-export function cardBacks(cardBack: string | undefined, count: number): Card[] {
+export function cardBacks(cardBack: string | undefined, count: number): CardSpec[] {
   if (!cardBack) return []
   return Array.from({ length: count }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
 }

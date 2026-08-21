@@ -3,7 +3,7 @@ import { CARD_HEIGHT_MM, CARD_WIDTH_MM } from "./card"
 import { composeText } from "./compose"
 import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
-import type { Card, Overlay, Style, Symbols } from "./types"
+import type { CardSpec, Overlay, Style, Symbols } from "./types"
 import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
@@ -14,7 +14,7 @@ export function cardLayers(
   resources: Resources,
   styles: Record<string, Style>,
   symbols: Symbols,
-  card: Card,
+  card: CardSpec,
 ): Layer[] {
   const layers: Layer[] = [{ type: "image", src: card.image }]
   let run: TextOverlay[] = []

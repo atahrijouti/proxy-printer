@@ -37,7 +37,7 @@ export type Overlay =
   | { type: "shape"; style: string }
   | { type: "text"; style: string; content: string | string[] }
 
-export interface Card {
+export interface CardSpec {
   id: string
   image: string
   overlays?: Overlay[]
@@ -55,5 +55,5 @@ export interface DB {
   cardBack?: string
   presentation?: Presentation
   symbols?: Symbols
-  cards: Card[]
+  cards: CardSpec[]
 }

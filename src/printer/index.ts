@@ -7,7 +7,7 @@ import { downloadBlob } from "../utils/download"
 import { CARDS_PER_PAGE } from "./page"
 import { buildPdf } from "./pdf"
 import { cardLayers, type Layer } from "./render"
-import type { Card } from "./types"
+import type { CardSpec } from "./types"
 
 const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
 
@@ -64,7 +64,7 @@ export function createPrinter(): Printer {
   const preparedDb = (): PreparedDb | undefined =>
     resource.state === "ready" ? resource() : undefined
 
-  const cards = (db: PreparedDb): Card[] =>
+  const cards = (db: PreparedDb): CardSpec[] =>
     settings.cardBacks ? cardBacks(db.cardBack, CARDS_PER_PAGE) : selectFromDeck(db.cards, deck())
 
   const renderCache = createMemo(() => {
