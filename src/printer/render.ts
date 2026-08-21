@@ -85,9 +85,9 @@ function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout
 }
 
 function drawInlineImage(canvas: Canvas, resources: Resources, placed: PlacedInlineImage) {
-  const { src, x, y, width, height } = placed
+  const { symbolUrl, x, y, width, height } = placed
 
-  const image = symbolImageForHeight(resources, src, height)
+  const image = symbolImageForHeight(resources, symbolUrl, height)
   if (!image) return
   const paint = new resources.ck.Paint()
   canvas.drawImageRectOptions(

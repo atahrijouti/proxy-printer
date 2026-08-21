@@ -60,7 +60,7 @@ async function loadSymbolSource(ck: CanvasKit, url: string): Promise<SymbolSourc
 export const symbolAspect = (resources: Resources, url: string): number | null =>
   resources.symbolSources.get(url)?.aspect ?? null
 
-function bucketHeight(heightPx: number): number {
+function bucketedHeightPx(heightPx: number): number {
   let size = 1
   while (size < heightPx) size *= 2
   return size
@@ -75,7 +75,7 @@ export function symbolImageForHeight(
   if (!source) return null
   if (source.kind === "raster") return source.image
 
-  const height = bucketHeight(heightPx)
+  const height = bucketedHeightPx(heightPx)
   const key = `${url}@${height}`
   const cached = resources.rasters.get(key)
   if (cached) return cached

@@ -4,11 +4,10 @@ const PT_PER_MM = 72 / 25.4
 export const pixelsFromMm = (mm: number): number => mm * PX_PER_MM
 export const pointsFromMm = (mm: number): number => mm * PT_PER_MM
 
-export function mmFromLength(value: string | number | undefined, emInMm = 0): number {
+export function mmFromLength(value: string | number | undefined): number {
   if (value == null) return 0
   if (typeof value === "number") return value
-  const match = value.trim().match(/^(-?[\d.]+)\s*(mm|em)?$/)
+  const match = value.trim().match(/^(-?[\d.]+)\s*(?:mm)?$/)
   if (!match) return 0
-  const amount = parseFloat(match[1])
-  return match[2] === "em" ? amount * emInMm : amount
+  return parseFloat(match[1])
 }

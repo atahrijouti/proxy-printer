@@ -4,7 +4,7 @@ import { mmFromLength } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
-export type Span = { style: Style; text: string } | { style: Style; imageSrc: string }
+export type Span = { style: Style; text: string } | { style: Style; symbolUrl: string }
 export type Paragraph = Span[]
 
 export interface ComposedText {
@@ -53,12 +53,12 @@ function composeParagraph(
   for (const node of parseMarkup(markup)) {
     const style = mergeStyleNames(base, node.styles, styles)
     if (node.type === "symbol") {
-      const imageSrc = symbols[node.id]
-      if (!imageSrc) {
+      const symbolUrl = symbols[node.id]
+      if (!symbolUrl) {
         console.warn(`unknown symbol: {sym ${node.id}}`)
         continue
       }
-      spans.push({ style, imageSrc })
+      spans.push({ style, symbolUrl })
     } else {
       spans.push({ style, text: node.text })
     }

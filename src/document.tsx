@@ -20,11 +20,11 @@ export const Document: Component<{ cards: RenderedCard[] }> = (props) => (
 
 const Page: Component<{ cards: RenderedCard[] }> = (props) => (
   <div class="page">
-    <Index each={props.cards}>{(card) => <CardComponent card={card()} />}</Index>
+    <Index each={props.cards}>{(card) => <Card card={card()} />}</Index>
   </div>
 )
 
-const CardComponent: Component<{ card: RenderedCard }> = (props) => (
+const Card: Component<{ card: RenderedCard }> = (props) => (
   <div class="card" data-card-id={props.card.id}>
     <Index each={props.card.layers}>
       {(layer) => <img class="layer" src={layer().src} alt="" />}

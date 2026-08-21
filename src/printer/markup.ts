@@ -51,10 +51,10 @@ export function parseMarkup(input: string): MarkupNode[] {
         }
         const inner = text.slice(i + 1, close)
         const space = inner.indexOf(" ")
-        const fn = space === -1 ? inner : inner.slice(0, space)
+        const directive = space === -1 ? inner : inner.slice(0, space)
         const rest = space === -1 ? "" : inner.slice(space + 1)
 
-        if (fn === "t") {
+        if (directive === "t") {
           const space2 = rest.indexOf(" ")
           const name = space2 === -1 ? rest : rest.slice(0, space2)
           const content = space2 === -1 ? "" : rest.slice(space2 + 1)
@@ -63,7 +63,7 @@ export function parseMarkup(input: string): MarkupNode[] {
           i = close
           continue
         }
-        if (fn === "sym") {
+        if (directive === "sym") {
           flush()
           nodes.push({ type: "symbol", id: rest.trim(), styles: [...active] })
           i = close

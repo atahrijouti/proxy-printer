@@ -36,7 +36,7 @@ export interface PlacedBackground {
 }
 
 export interface PlacedInlineImage {
-  src: string
+  symbolUrl: string
   x: number
   y: number
   width: number
@@ -71,7 +71,7 @@ function layoutInlineText(resources: Resources, composed: ComposedText, layout: 
     composed.style.align === "center"
       ? (pixelsFromMm(CARD_WIDTH_MM) - width) / 2
       : pixelsFromMm(composed.boxXMm)
-  const y = capTop(
+  const y = capTopPx(
     resources,
     composed.style,
     pixelsFromMm(composed.boxYMm),
@@ -94,7 +94,7 @@ function layoutBlockText(resources: Resources, composed: ComposedText, layout: T
     const paragraphs = composed.content.map((spans) =>
       buildParagraph(resources, composed.style, spans, fontSizeMm, wrapWidth, align),
     )
-    const paragraphGap = pixelsFromMm(mmFromLength(composed.style.paragraphGap, fontSizeMm))
+    const paragraphGap = pixelsFromMm(mmFromLength(composed.style.paragraphGap))
     const height =
       paragraphs.reduce((sum, shaped) => sum + shaped.paragraph.getHeight(), 0) +
       paragraphGap * Math.max(0, paragraphs.length - 1)
@@ -122,8 +122,8 @@ function layoutBlockText(resources: Resources, composed: ComposedText, layout: T
 }
 
 interface InlineImage {
-  src: string
-  drop: number
+  symbolUrl: string
+  dropPx: number
 }
 interface BackgroundRange {
   start: number
@@ -174,8 +174,8 @@ function layoutSpan(
   placeholders: (InlineImage | null)[],
   backgrounds: BackgroundRange[],
 ): number {
-  if ("imageSrc" in span) {
-    const aspect = symbolAspect(resources, span.imageSrc)
+  if ("symbolUrl" in span) {
+    const aspect = symbolAspect(resources, span.symbolUrl)
     if (aspect == null) return offset
     const capHeight = capHeightPx(resources, span.style, fontSizeMm)
     const height = capHeight * INLINE_IMAGE_CAP_RATIO
@@ -188,20 +188,13 @@ function layoutSpan(
       0,
     )
     placeholders.push({
-      src: span.imageSrc,
-      drop: (capHeight * (1 - INLINE_IMAGE_CAP_RATIO)) / 2,
+      symbolUrl: span.symbolUrl,
+      dropPx: (capHeight * (1 - INLINE_IMAGE_CAP_RATIO)) / 2,
     })
     return offset + 1
   }
 
-  offset = layoutMargin(
-    resources,
-    builder,
-    span.style.margin?.before,
-    fontSizeMm,
-    offset,
-    placeholders,
-  )
+  offset = layoutMargin(resources, builder, span.style.margin?.before, offset, placeholders)
   const text = span.style.uppercase ? span.text.toUpperCase() : span.text
   builder.pushStyle(ckTextStyle(resources, span.style, fontSizeMm))
   builder.addText(text)
@@ -210,25 +203,17 @@ function layoutSpan(
   offset += text.length
 
   if (span.style.background) backgrounds.push({ start, end: offset, style: span.style })
-  return layoutMargin(
-    resources,
-    builder,
-    span.style.margin?.after,
-    fontSizeMm,
-    offset,
-    placeholders,
-  )
+  return layoutMargin(resources, builder, span.style.margin?.after, offset, placeholders)
 }
 
 function layoutMargin(
   resources: Resources,
   builder: ParagraphBuilder,
   marginLength: string | undefined,
-  fontSizeMm: number,
   offset: number,
   placeholders: (InlineImage | null)[],
 ): number {
-  const gap = pixelsFromMm(mmFromLength(marginLength, fontSizeMm))
+  const gap = pixelsFromMm(mmFromLength(marginLength))
   if (gap <= 0) return offset
   builder.addPlaceholder(
     gap,
@@ -266,7 +251,7 @@ function placeBackgrounds(
   for (const range of shaped.backgrounds) {
     const background = range.style.background
     if (!background) continue
-    const outset = resolveOutset(background.outset, fontSizeMm)
+    const outset = mmFromOutset(background.outset)
     const radius = pixelsFromMm(mmFromLength(background.corners?.bottomRight))
     const capHeight = capHeightPx(resources, range.style, fontSizeMm)
     for (const { rect } of shaped.paragraph.getRectsForRange(
@@ -305,9 +290,9 @@ function placeInlineImages(
     const height = rect[3] - rect[1]
     const line = lineAt(lines, (rect[1] + rect[3]) / 2)
     placed.push({
-      src: inlineImage.src,
+      symbolUrl: inlineImage.symbolUrl,
       x: originX + rect[0],
-      y: originY + (line?.baseline ?? 0) - height - inlineImage.drop,
+      y: originY + (line?.baseline ?? 0) - height - inlineImage.dropPx,
       width,
       height,
     })
@@ -323,7 +308,7 @@ const capHeightPx = (resources: Resources, style: Style, fontSizeMm: number) =>
   (resources.capRatios.get(style.fontFamily ?? DEFAULT_FONT_FAMILY) ?? FALLBACK_CAP_RATIO) *
   pixelsFromMm(fontSizeMm)
 
-function capTop(
+function capTopPx(
   resources: Resources,
   style: Style,
   boxYPx: number,
@@ -334,14 +319,13 @@ function capTop(
   return boxYPx - (ascent - capHeightPx(resources, style, fontSizeMm))
 }
 
-const resolveOutset = (
+const mmFromOutset = (
   outset: { top?: string; right?: string; bottom?: string; left?: string } | undefined,
-  emMm: number,
 ) => ({
-  top: mmFromLength(outset?.top, emMm),
-  right: mmFromLength(outset?.right, emMm),
-  bottom: mmFromLength(outset?.bottom, emMm),
-  left: mmFromLength(outset?.left, emMm),
+  top: mmFromLength(outset?.top),
+  right: mmFromLength(outset?.right),
+  bottom: mmFromLength(outset?.bottom),
+  left: mmFromLength(outset?.left),
 })
 
 const ckFontWeight = (resources: Resources, weight = 400) => {
