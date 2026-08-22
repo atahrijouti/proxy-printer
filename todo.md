@@ -1,4 +1,3 @@
-- Stop exporting dbSchema and parseDb from db/index.ts — nothing outside db/ imports them, and load.ts reaches ./schema directly
 - Drop the export on selectFromDeck and cardBacks in deck.ts — selectCards is the only caller from outside, so the module's entry point stops being ambiguous
 - Rename Layer's image/text tag to what pdf.ts actually reads it for — whether the src is a URL still to fetch or already a data URL
 - Rename app/styles.ts and its embeddedStyles export after their content — page and card geometry as CSS custom properties, not a second "styles" beside styles.css
