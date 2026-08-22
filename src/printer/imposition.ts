@@ -15,7 +15,5 @@ export function selectCards(
   cardBack: string | undefined,
   imposition: Imposition,
 ): CardSpec[] {
-  return imposition.kind === "backs"
-    ? cardBacks(cardBack)
-    : selectFromDeck(cards, imposition.deck)
+  return imposition.kind === "backs" ? cardBacks(cardBack) : selectFromDeck(cards, imposition.deck)
 }
