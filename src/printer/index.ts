@@ -12,5 +12,4 @@ export {
   PAGE_HEIGHT,
   PAGE_PADDING,
   PAGE_WIDTH,
-  ROWS,
 } from "./page"
