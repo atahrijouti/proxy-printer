@@ -1,3 +1,2 @@
-- Rename app/styles.ts and its embeddedStyles export after their content — page and card geometry as CSS custom properties, not a second "styles" beside styles.css
 - Merge cardLayers into renderCard as one function taking (environment, db, card) — today they do the same work, differing only in the DB fields being unpacked loose
 - Move cardBacks out of deck.ts into its own module — a full page of backs is a page concern, and it is the sole reason a decklist module imports CARDS_PER_PAGE

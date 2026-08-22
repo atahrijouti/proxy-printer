@@ -7,16 +7,20 @@ import { render } from "solid-js/web"
 import { Document } from "./document"
 import { PrinterProvider } from "./printer-context"
 import { Sidebar } from "./sidebar"
+import { embeddedStyles } from "./styles"
 
 const App: Component = () => (
-  <PrinterProvider>
-    <aside class="controls no-print">
-      <Sidebar />
-    </aside>
-    <main>
-      <Document />
-    </main>
-  </PrinterProvider>
+  <>
+    <style>{embeddedStyles}</style>
+    <PrinterProvider>
+      <aside class="controls no-print">
+        <Sidebar />
+      </aside>
+      <main>
+        <Document />
+      </main>
+    </PrinterProvider>
+  </>
 )
 
 const root = document.getElementById("root")
