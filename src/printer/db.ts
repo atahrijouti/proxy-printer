@@ -17,8 +17,8 @@ export async function prepareDb(db: DB): Promise<PreparedDb> {
   return {
     cards: db.cards,
     cardBack: db.cardBack,
-    resources: await loadResources(db.presentation?.fonts ?? [], symbolUrls(db)),
-    styles: db.presentation?.styles ?? {},
+    resources: await loadResources(db.fonts ?? [], symbolUrls(db)),
+    styles: db.styles ?? {},
     symbols: db.symbols ?? {},
   }
 }

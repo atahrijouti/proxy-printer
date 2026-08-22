@@ -6,7 +6,6 @@ export type {
   FontFace,
   Mm,
   Overlay,
-  Presentation,
   Style,
   Symbols,
 } from "./schema"
