@@ -7,7 +7,7 @@ import type {
 import { CARD_WIDTH } from "./page"
 import type { ComposedText, Span } from "./compose"
 import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Resources } from "./resources"
-import type { Style } from "./types"
+import type { Background, Style } from "./types"
 import { mmFromLength, pixelsFromMm } from "./units"
 
 const UNBOUNDED_WIDTH_PX = 1e6
@@ -21,12 +21,19 @@ export interface PlacedParagraph {
   x: number
   y: number
 }
+export interface PlacedCorners {
+  topLeft: number
+  topRight: number
+  bottomRight: number
+  bottomLeft: number
+}
+
 export interface PlacedBackground {
   left: number
   top: number
   right: number
   bottom: number
-  radius: number
+  corners: PlacedCorners
   fill: string
 }
 
@@ -247,7 +254,7 @@ function placeBackgrounds(
     const background = range.style.background
     if (!background) continue
     const outset = mmFromOutset(background.outset)
-    const radius = pixelsFromMm(mmFromLength(background.corners?.bottomRight))
+    const corners = pxFromCorners(background.corners)
     const capHeight = capHeightPx(resources, range.style, fontSizeMm)
     for (const { rect } of shaped.paragraph.getRectsForRange(
       range.start,
@@ -263,7 +270,7 @@ function placeBackgrounds(
         top: baseline - capHeight - pixelsFromMm(outset.top),
         right: originX + rect[2] + pixelsFromMm(outset.right),
         bottom: baseline + pixelsFromMm(outset.bottom),
-        radius,
+        corners,
         fill: background.fill,
       })
     }
@@ -321,6 +328,13 @@ const mmFromOutset = (
   right: mmFromLength(outset?.right),
   bottom: mmFromLength(outset?.bottom),
   left: mmFromLength(outset?.left),
+})
+
+const pxFromCorners = (corners: Background["corners"]): PlacedCorners => ({
+  topLeft: pixelsFromMm(mmFromLength(corners?.topLeft)),
+  topRight: pixelsFromMm(mmFromLength(corners?.topRight)),
+  bottomRight: pixelsFromMm(mmFromLength(corners?.bottomRight)),
+  bottomLeft: pixelsFromMm(mmFromLength(corners?.bottomLeft)),
 })
 
 const ckFontWeight = (resources: Resources, weight = 400) => {

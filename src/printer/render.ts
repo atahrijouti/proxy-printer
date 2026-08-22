@@ -74,8 +74,9 @@ function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout
       const paint = new resources.ck.Paint()
       paint.setColor(colorFromHex(resources, background.fill))
       paint.setAntiAlias(true)
-      const { left, top, right, bottom, radius } = background
-      canvas.drawRRect([left, top, right, bottom, 0, 0, 0, 0, radius, radius, 0, 0], paint)
+      const { left, top, right, bottom, corners } = background
+      const { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl } = corners
+      canvas.drawRRect([left, top, right, bottom, tl, tl, tr, tr, br, br, bl, bl], paint)
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
