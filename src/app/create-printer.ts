@@ -5,11 +5,11 @@ import { type DB, fetchDb } from "~/db"
 import {
   buildPdf,
   type Environment,
+  type Imposition,
   loadEnvironment,
   renderCard,
   type RenderedCard,
   selectCards,
-  type Selection,
 } from "~/printer"
 import { createDebounced } from "~/utils/debounce"
 import { downloadBlob } from "~/utils/download"
@@ -73,14 +73,14 @@ export function createPrinter(): Printer {
   const printerResource = (): PrinterResource | undefined =>
     request.state === "ready" ? request() : undefined
 
-  const selection = (): Selection =>
+  const imposition = (): Imposition =>
     settings.cardBacks ? { kind: "backs" } : { kind: "deck", deck: deck() }
 
   const renderedCards = createMemo<RenderedCard[]>(() => {
     const resource = printerResource()
     if (!resource) return []
     const { db, environment, rendered } = resource
-    return selectCards(db.cards, db.cardBack, selection()).map((card) => {
+    return selectCards(db.cards, db.cardBack, imposition()).map((card) => {
       const cached = rendered.get(card.id)
       if (cached) return cached
       const renderedCard = renderCard(environment, db, card)

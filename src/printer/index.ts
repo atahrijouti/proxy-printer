@@ -1,5 +1,5 @@
-export { selectCards, type Selection } from "./deck"
 export { type Environment, loadEnvironment } from "./environment"
+export { type Imposition, selectCards } from "./imposition"
 export {
   CARD_HEIGHT,
   CARD_RADIUS,

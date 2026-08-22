@@ -1,1 +1,0 @@
-- Move cardBacks out of deck.ts into its own module — a full page of backs is a page concern, and it is the sole reason a decklist module imports CARDS_PER_PAGE
