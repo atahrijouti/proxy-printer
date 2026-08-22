@@ -69,9 +69,9 @@ const cardSpec = v.object({
 export const dbSchema = v.object({
   name: v.optional(v.string()),
   cardBack: v.optional(v.string()),
-  fonts: v.optional(v.array(fontFace)),
-  styles: v.optional(v.record(v.string(), style)),
-  symbols: v.optional(v.record(v.string(), v.string())),
+  fonts: v.optional(v.array(fontFace), []),
+  styles: v.optional(v.record(v.string(), style), {}),
+  symbols: v.optional(v.record(v.string(), v.string()), {}),
   cards: v.array(cardSpec),
 })
 
@@ -81,5 +81,5 @@ export type Background = v.InferOutput<typeof background>
 export type Style = v.InferOutput<typeof style>
 export type Overlay = v.InferOutput<typeof overlay>
 export type CardSpec = v.InferOutput<typeof cardSpec>
-export type Symbols = NonNullable<DB["symbols"]>
+export type Symbols = DB["symbols"]
 export type DB = v.InferOutput<typeof dbSchema>
