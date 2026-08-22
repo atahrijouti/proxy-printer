@@ -1,6 +1,6 @@
 import type { Canvas } from "canvaskit-wasm"
 
-import type { CardSpec, DB, Overlay, Style, Symbols } from "~/db"
+import type { CardSpec, DB, Overlay } from "~/db"
 
 import { composeText } from "./compose"
 import { colorFromHex, type Environment, symbolImageForHeight } from "./environment"
@@ -15,17 +15,17 @@ export interface Layer {
   src: string
 }
 
-export function cardLayers(
-  environment: Environment,
-  styles: Record<string, Style>,
-  symbols: Symbols,
-  card: CardSpec,
-): Layer[] {
+export interface RenderedCard {
+  id: string
+  layers: Layer[]
+}
+
+export function renderCard(environment: Environment, db: DB, card: CardSpec): RenderedCard {
   const layers: Layer[] = [{ type: "image", src: card.image }]
   let run: TextOverlay[] = []
   const flush = () => {
     if (run.length === 0) return
-    layers.push({ type: "text", src: rasterizeText(environment, styles, symbols, run) })
+    layers.push({ type: "text", src: rasterizeText(environment, db, run) })
     run = []
   }
   for (const overlay of card.overlays ?? []) {
@@ -40,22 +40,17 @@ export function cardLayers(
     }
   }
   flush()
-  return layers
+  return { id: card.id, layers }
 }
 
-function rasterizeText(
-  environment: Environment,
-  styles: Record<string, Style>,
-  symbols: Symbols,
-  overlays: TextOverlay[],
-): string {
+function rasterizeText(environment: Environment, db: DB, overlays: TextOverlay[]): string {
   const surface = environment.ck.MakeSurface(pixelsFromMm(CARD_WIDTH), pixelsFromMm(CARD_HEIGHT))
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()
     canvas.clear(environment.ck.TRANSPARENT)
     for (const overlay of overlays) {
-      const layout = layoutText(environment, composeText(overlay, styles, symbols))
+      const layout = layoutText(environment, composeText(overlay, db.styles, db.symbols))
       drawTextLayout(canvas, environment, layout)
     }
     surface.flush()
@@ -114,13 +109,3 @@ function pngDataUrl(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
   return `data:image/png;base64,${btoa(binary)}`
 }
-
-export interface RenderedCard {
-  id: string
-  layers: Layer[]
-}
-
-export const renderCard = (environment: Environment, db: DB, card: CardSpec): RenderedCard => ({
-  id: card.id,
-  layers: cardLayers(environment, db.styles, db.symbols, card),
-})
