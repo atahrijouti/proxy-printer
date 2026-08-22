@@ -74,6 +74,7 @@ function composeParagraph(
 const mergeStyleNames = (base: Style, names: string[], styles: Record<string, Style>): Style =>
   names.reduce((merged, name) => {
     const style = styles[name]
+    // known lacking feature : show diagnosis for missing styles
     if (!style) console.warn(`unknown style: "${name}"`)
     return { ...merged, ...style }
   }, base)
