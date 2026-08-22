@@ -1,3 +1,4 @@
+import { CARDS_PER_PAGE } from "./page"
 import type { CardSpec } from "./types"
 
 export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
@@ -17,4 +18,16 @@ export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
 export function cardBacks(cardBack: string | undefined, count: number): CardSpec[] {
   if (!cardBack) return []
   return Array.from({ length: count }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
+}
+
+export type Selection = { kind: "deck"; deck: string } | { kind: "backs" }
+
+export function selectCards(
+  cards: CardSpec[],
+  cardBack: string | undefined,
+  selection: Selection,
+): CardSpec[] {
+  return selection.kind === "backs"
+    ? cardBacks(cardBack, CARDS_PER_PAGE)
+    : selectFromDeck(cards, selection.deck)
 }

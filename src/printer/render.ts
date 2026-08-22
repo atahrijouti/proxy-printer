@@ -1,4 +1,5 @@
 import type { Canvas } from "canvaskit-wasm"
+import type { PreparedDb } from "./db"
 import { CARD_HEIGHT, CARD_WIDTH } from "./page"
 import { composeText } from "./compose"
 import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
@@ -105,3 +106,13 @@ function pngDataUrl(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
   return `data:image/png;base64,${btoa(binary)}`
 }
+
+export interface RenderedCard {
+  id: string
+  layers: Layer[]
+}
+
+export const renderCard = (db: PreparedDb, card: CardSpec): RenderedCard => ({
+  id: card.id,
+  layers: cardLayers(db.resources, db.styles, db.symbols, card),
+})
