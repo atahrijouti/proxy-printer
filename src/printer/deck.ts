@@ -2,7 +2,7 @@ import type { CardSpec } from "~/db"
 
 import { CARDS_PER_PAGE } from "./page"
 
-export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
+function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
   if (!cards.length) return []
   if (deck.trim() === "") return cards
   const out: CardSpec[] = []
@@ -16,7 +16,7 @@ export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
   return out
 }
 
-export function cardBacks(cardBack: string | undefined, count: number): CardSpec[] {
+function cardBacks(cardBack: string | undefined, count: number): CardSpec[] {
   if (!cardBack) return []
   return Array.from({ length: count }, (_, i) => ({ id: `back-${i}`, image: cardBack }))
 }
