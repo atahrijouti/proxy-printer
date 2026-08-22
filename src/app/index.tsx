@@ -1,8 +1,9 @@
 /* @refresh reload */
-import { render } from "solid-js/web"
-import type { Component } from "solid-js"
-
 import "./styles.css"
+
+import type { Component } from "solid-js"
+import { render } from "solid-js/web"
+
 import { Document } from "./document"
 import { PrinterProvider } from "./printer-context"
 import { Sidebar } from "./sidebar"

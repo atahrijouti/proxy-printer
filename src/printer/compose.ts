@@ -1,5 +1,6 @@
-import { parseMarkup } from "./markup"
 import type { Overlay, Style, Symbols } from "~/db"
+
+import { parseMarkup } from "./markup"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 

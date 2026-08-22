@@ -1,5 +1,6 @@
 import * as v from "valibot"
-import { dbSchema, type DB } from "./schema"
+
+import { type DB, dbSchema } from "./schema"
 
 const MAX_REPORTED_ISSUES = 10
 

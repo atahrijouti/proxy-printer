@@ -1,5 +1,6 @@
-import { CARDS_PER_PAGE } from "./page"
 import type { CardSpec } from "~/db"
+
+import { CARDS_PER_PAGE } from "./page"
 
 export function selectFromDeck(cards: CardSpec[], deck: string): CardSpec[] {
   if (!cards.length) return []

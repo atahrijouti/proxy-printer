@@ -1,10 +1,11 @@
 import { initWasm as initResvg, Resvg } from "@resvg/resvg-wasm"
 import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm?url"
+import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
-import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
-import { fetchBytes } from "~/utils/fetch-bytes"
+
 import type { DB } from "~/db"
+import { fetchBytes } from "~/utils/fetch-bytes"
 
 interface SvgFonts {
   fontBuffers: Uint8Array[]

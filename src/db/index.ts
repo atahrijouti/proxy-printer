@@ -1,4 +1,4 @@
-export { dbSchema } from "./schema"
+export { fetchDb, parseDb } from "./load"
 export type {
   Background,
   CardSpec,
@@ -9,4 +9,4 @@ export type {
   Style,
   Symbols,
 } from "./schema"
-export { fetchDb, parseDb } from "./load"
+export { dbSchema } from "./schema"

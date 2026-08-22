@@ -4,10 +4,12 @@ import type {
   TextAlign,
   TextStyle as CkTextStyle,
 } from "canvaskit-wasm"
-import { CARD_WIDTH } from "./page"
-import type { ComposedText, Span } from "./compose"
-import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Environment } from "./environment"
+
 import type { Background, Mm, Style } from "~/db"
+
+import type { ComposedText, Span } from "./compose"
+import { colorFromHex, type Environment, FALLBACK_CAP_RATIO, symbolAspect } from "./environment"
+import { CARD_WIDTH } from "./page"
 import { pixelsFromMm } from "./units"
 
 const UNBOUNDED_WIDTH_PX = 1e6

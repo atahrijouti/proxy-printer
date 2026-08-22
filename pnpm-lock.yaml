@@ -39,6 +39,9 @@ importers:
       eslint:
         specifier: ^10.8.1
         version: 10.8.1
+      eslint-plugin-simple-import-sort:
+        specifier: ^14.0.0
+        version: 14.0.0(eslint@10.8.1)
       eslint-plugin-solid:
         specifier: ^0.15.0
         version: 0.15.0(eslint@10.8.1)(typescript@6.0.3)
@@ -604,6 +607,11 @@ packages:
   escape-string-regexp@4.0.0:
     resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
     engines: {node: '>=10'}
+
+  eslint-plugin-simple-import-sort@14.0.0:
+    resolution: {integrity: sha512-NUJO0+XFCkk+o5EsAJruTgnfMEpeWrPWeJS15UVF60GgXmqz1BJ9/3hzlvG7lkL8Bubzos5cCLptThbFfPnSMQ==}
+    peerDependencies:
+      eslint: '>=5.0.0'
 
   eslint-plugin-solid@0.15.0:
     resolution: {integrity: sha512-IMSj0HK8zu4WuHMAeH38izG8ZBgOkwUqu0W2LrTyW0m/QPuOmrq8P2Y36HDAETIgDg9j6G+TJBdfpILTVPJkFQ==}
@@ -1695,6 +1703,10 @@ snapshots:
   escalade@3.2.0: {}
 
   escape-string-regexp@4.0.0: {}
+
+  eslint-plugin-simple-import-sort@14.0.0(eslint@10.8.1):
+    dependencies:
+      eslint: 10.8.1
 
   eslint-plugin-solid@0.15.0(eslint@10.8.1)(typescript@6.0.3):
     dependencies:

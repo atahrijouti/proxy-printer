@@ -1,4 +1,5 @@
-import { Show, type Component } from "solid-js"
+import { type Component, Show } from "solid-js"
+
 import { usePrinter } from "./printer-context"
 
 export const Sidebar: Component = () => {

@@ -1,4 +1,5 @@
-import { createContext, useContext, type JSX } from "solid-js"
+import { createContext, type JSX, useContext } from "solid-js"
+
 import { createPrinter, type Printer } from "./create-printer"
 
 const PrinterContext = createContext<Printer>()

@@ -1,4 +1,3 @@
-- Add an eslint import-order rule — one config line plus an autofix, and it settles ordering before the moves below churn the same imports
 - Stop exporting dbSchema and parseDb from db/index.ts — nothing outside db/ imports them, and load.ts reaches ./schema directly
 - Drop the export on selectFromDeck and cardBacks in deck.ts — selectCards is the only caller from outside, so the module's entry point stops being ambiguous
 - Rename Layer's image/text tag to what pdf.ts actually reads it for — whether the src is a URL still to fetch or already a data URL
