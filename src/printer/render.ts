@@ -31,6 +31,9 @@ export function cardLayers(
     }
     flush()
     if (overlay.type === "image") layers.push({ type: "image", src: overlay.src })
+    if (overlay.type === "shape") {
+      // known missing, will be implemented in the future
+    }
   }
   flush()
   return layers
