@@ -1,0 +1,7 @@
+- Add an eslint import-order rule — one config line plus an autofix, and it settles ordering before the moves below churn the same imports
+- Stop exporting dbSchema and parseDb from db/index.ts — nothing outside db/ imports them, and load.ts reaches ./schema directly
+- Drop the export on selectFromDeck and cardBacks in deck.ts — selectCards is the only caller from outside, so the module's entry point stops being ambiguous
+- Rename Layer's image/text tag to what pdf.ts actually reads it for — whether the src is a URL still to fetch or already a data URL
+- Rename app/styles.ts and its embeddedStyles export after their content — page and card geometry as CSS custom properties, not a second "styles" beside styles.css
+- Merge cardLayers into renderCard as one function taking (environment, db, card) — today they do the same work, differing only in the DB fields being unpacked loose
+- Move cardBacks out of deck.ts into its own module — a full page of backs is a page concern, and it is the sole reason a decklist module imports CARDS_PER_PAGE
