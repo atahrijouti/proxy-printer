@@ -1,13 +1,13 @@
 import { createMemo, createResource, createSignal, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
-import { fetchDb } from "~/db"
+import { fetchDb, type DB } from "~/db"
 import {
   buildPdf,
-  prepareDb,
+  loadEnvironment,
   renderCard,
   selectCards,
-  type PreparedDb,
   type RenderedCard,
+  type Environment,
   type Selection,
 } from "~/printer"
 import { createDebounced } from "~/utils/debounce"
@@ -34,6 +34,12 @@ export interface Settings {
   cardBacks: boolean
 }
 
+interface PrinterResource {
+  db: DB
+  environment: Environment
+  rendered: Map<string, RenderedCard>
+}
+
 export interface Printer {
   settings: Settings
   setSettings: <K extends keyof Settings>(key: K, value: Settings[K]) => void
@@ -58,37 +64,35 @@ export function createPrinter(): Printer {
 
   const dbUrl = createDebounced(() => settings.dbUrl, DB_URL_DEBOUNCE_MS)
   const deck = createDebounced(() => settings.deck, DECK_DEBOUNCE_MS)
-  const [resource] = createResource(dbUrl, async (value) => prepareDb(await fetchDb(value)))
+  const [request] = createResource(dbUrl, async (url): Promise<PrinterResource> => {
+    const db = await fetchDb(url)
+    return { db, environment: await loadEnvironment(db), rendered: new Map() }
+  })
 
-  const preparedDb = (): PreparedDb | undefined =>
-    resource.state === "ready" ? resource() : undefined
+  const printerResource = (): PrinterResource | undefined =>
+    request.state === "ready" ? request() : undefined
 
   const selection = (): Selection =>
     settings.cardBacks ? { kind: "backs" } : { kind: "deck", deck: deck() }
 
-  const renderCache = createMemo(() => {
-    preparedDb()
-    return new Map<string, RenderedCard>()
-  })
-
   const renderedCards = createMemo<RenderedCard[]>(() => {
-    const db = preparedDb()
-    if (!db) return []
-    const cache = renderCache()
+    const resource = printerResource()
+    if (!resource) return []
+    const { db, environment, rendered } = resource
     return selectCards(db.cards, db.cardBack, selection()).map((card) => {
-      const cached = cache.get(card.id)
+      const cached = rendered.get(card.id)
       if (cached) return cached
-      const rendered = renderCard(db, card)
-      cache.set(card.id, rendered)
-      return rendered
+      const renderedCard = renderCard(environment, db, card)
+      rendered.set(card.id, renderedCard)
+      return renderedCard
     })
   })
 
-  const ready = () => preparedDb() !== undefined
+  const ready = () => printerResource() !== undefined
 
   const status = () => {
-    if (resource.loading) return "Loading…"
-    const error: unknown = resource.error
+    if (request.loading) return "Loading…"
+    const error: unknown = request.error
     if (error) return messageFromError(error)
     return buildError()
   }

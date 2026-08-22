@@ -1,10 +1,9 @@
 import type { Canvas } from "canvaskit-wasm"
-import type { PreparedDb } from "./db"
 import { CARD_HEIGHT, CARD_WIDTH } from "./page"
 import { composeText } from "./compose"
-import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
+import { symbolImageForHeight, colorFromHex, type Environment } from "./environment"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
-import type { CardSpec, Overlay, Style, Symbols } from "~/db"
+import type { CardSpec, DB, Overlay, Style, Symbols } from "~/db"
 import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
@@ -12,7 +11,7 @@ type TextOverlay = Extract<Overlay, { type: "text" }>
 export type Layer = { type: "image"; src: string } | { type: "text"; src: string }
 
 export function cardLayers(
-  resources: Resources,
+  environment: Environment,
   styles: Record<string, Style>,
   symbols: Symbols,
   card: CardSpec,
@@ -21,7 +20,7 @@ export function cardLayers(
   let run: TextOverlay[] = []
   const flush = () => {
     if (run.length === 0) return
-    layers.push({ type: "text", src: rasterizeText(resources, styles, symbols, run) })
+    layers.push({ type: "text", src: rasterizeText(environment, styles, symbols, run) })
     run = []
   }
   for (const overlay of card.overlays ?? []) {
@@ -40,19 +39,19 @@ export function cardLayers(
 }
 
 function rasterizeText(
-  resources: Resources,
+  environment: Environment,
   styles: Record<string, Style>,
   symbols: Symbols,
   overlays: TextOverlay[],
 ): string {
-  const surface = resources.ck.MakeSurface(pixelsFromMm(CARD_WIDTH), pixelsFromMm(CARD_HEIGHT))
+  const surface = environment.ck.MakeSurface(pixelsFromMm(CARD_WIDTH), pixelsFromMm(CARD_HEIGHT))
   if (!surface) throw new Error("could not create raster surface")
   try {
     const canvas = surface.getCanvas()
-    canvas.clear(resources.ck.TRANSPARENT)
+    canvas.clear(environment.ck.TRANSPARENT)
     for (const overlay of overlays) {
-      const layout = layoutText(resources, composeText(overlay, styles, symbols))
-      drawTextLayout(canvas, resources, layout)
+      const layout = layoutText(environment, composeText(overlay, styles, symbols))
+      drawTextLayout(canvas, environment, layout)
     }
     surface.flush()
     const image = surface.makeImageSnapshot()
@@ -68,11 +67,11 @@ function rasterizeText(
   }
 }
 
-function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout) {
+function drawTextLayout(canvas: Canvas, environment: Environment, layout: TextLayout) {
   try {
     for (const background of layout.backgrounds) {
-      const paint = new resources.ck.Paint()
-      paint.setColor(colorFromHex(resources, background.fill))
+      const paint = new environment.ck.Paint()
+      paint.setColor(colorFromHex(environment, background.fill))
       paint.setAntiAlias(true)
       const { left, top, right, bottom, corners } = background
       const { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl } = corners
@@ -80,24 +79,24 @@ function drawTextLayout(canvas: Canvas, resources: Resources, layout: TextLayout
       paint.delete()
     }
     for (const { paragraph, x, y } of layout.paragraphs) canvas.drawParagraph(paragraph, x, y)
-    for (const inlineImage of layout.inlineImages) drawInlineImage(canvas, resources, inlineImage)
+    for (const inlineImage of layout.inlineImages) drawInlineImage(canvas, environment, inlineImage)
   } finally {
     for (const { paragraph } of layout.paragraphs) paragraph.delete()
   }
 }
 
-function drawInlineImage(canvas: Canvas, resources: Resources, placed: PlacedInlineImage) {
+function drawInlineImage(canvas: Canvas, environment: Environment, placed: PlacedInlineImage) {
   const { symbolUrl, x, y, width, height } = placed
 
-  const image = symbolImageForHeight(resources, symbolUrl, height)
+  const image = symbolImageForHeight(environment, symbolUrl, height)
   if (!image) return
-  const paint = new resources.ck.Paint()
+  const paint = new environment.ck.Paint()
   canvas.drawImageRectOptions(
     image,
-    resources.ck.LTRBRect(0, 0, image.width(), image.height()),
-    resources.ck.LTRBRect(x, y, x + width, y + height),
-    resources.ck.FilterMode.Linear,
-    resources.ck.MipmapMode.None,
+    environment.ck.LTRBRect(0, 0, image.width(), image.height()),
+    environment.ck.LTRBRect(x, y, x + width, y + height),
+    environment.ck.FilterMode.Linear,
+    environment.ck.MipmapMode.None,
     paint,
   )
   paint.delete()
@@ -116,7 +115,7 @@ export interface RenderedCard {
   layers: Layer[]
 }
 
-export const renderCard = (db: PreparedDb, card: CardSpec): RenderedCard => ({
+export const renderCard = (environment: Environment, db: DB, card: CardSpec): RenderedCard => ({
   id: card.id,
-  layers: cardLayers(db.resources, db.styles, db.symbols, card),
+  layers: cardLayers(environment, db.styles, db.symbols, card),
 })

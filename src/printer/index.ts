@@ -1,4 +1,4 @@
-export { prepareDb, type PreparedDb } from "./db"
+export { loadEnvironment, type Environment } from "./environment"
 export { selectCards, type Selection } from "./deck"
 export { renderCard, type Layer, type RenderedCard } from "./render"
 export { buildPdf } from "./pdf"

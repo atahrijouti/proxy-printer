@@ -6,7 +6,7 @@ import type {
 } from "canvaskit-wasm"
 import { CARD_WIDTH } from "./page"
 import type { ComposedText, Span } from "./compose"
-import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Resources } from "./resources"
+import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Environment } from "./environment"
 import type { Background, Mm, Style } from "~/db"
 import { pixelsFromMm } from "./units"
 
@@ -50,23 +50,23 @@ export interface TextLayout {
   inlineImages: PlacedInlineImage[]
 }
 
-export function layoutText(resources: Resources, composed: ComposedText): TextLayout {
+export function layoutText(environment: Environment, composed: ComposedText): TextLayout {
   const layout: TextLayout = { backgrounds: [], paragraphs: [], inlineImages: [] }
-  if (composed.mode === "block") layoutBlockText(resources, composed, layout)
-  else layoutInlineText(resources, composed, layout)
+  if (composed.mode === "block") layoutBlockText(environment, composed, layout)
+  else layoutInlineText(environment, composed, layout)
   return layout
 }
 
-function layoutInlineText(resources: Resources, composed: ComposedText, layout: TextLayout) {
+function layoutInlineText(environment: Environment, composed: ComposedText, layout: TextLayout) {
   const fontSizeMm = composed.style.fontSize ?? 0
   const spans = composed.content[0] ?? []
   const shaped = buildParagraph(
-    resources,
+    environment,
     composed.style,
     spans,
     fontSizeMm,
     UNBOUNDED_WIDTH_PX,
-    resources.ck.TextAlign.Left,
+    environment.ck.TextAlign.Left,
   )
   const width = shaped.paragraph.getMaxIntrinsicWidth()
   const x =
@@ -74,27 +74,29 @@ function layoutInlineText(resources: Resources, composed: ComposedText, layout: 
       ? (pixelsFromMm(CARD_WIDTH) - width) / 2
       : pixelsFromMm(composed.boxXMm)
   const y = capTopPx(
-    resources,
+    environment,
     composed.style,
     pixelsFromMm(composed.boxYMm),
     fontSizeMm,
     shaped.paragraph,
   )
-  placeParagraph(layout, resources, shaped, x, y, fontSizeMm)
+  placeParagraph(layout, environment, shaped, x, y, fontSizeMm)
 }
 
-function layoutBlockText(resources: Resources, composed: ComposedText, layout: TextLayout) {
+function layoutBlockText(environment: Environment, composed: ComposedText, layout: TextLayout) {
   const boxX = pixelsFromMm(composed.boxXMm)
   const boxHeightPx = pixelsFromMm(composed.boxHeightMm)
   const wrapWidth = pixelsFromMm(composed.boxWidthMm)
   const align =
-    composed.style.align === "center" ? resources.ck.TextAlign.Center : resources.ck.TextAlign.Left
+    composed.style.align === "center"
+      ? environment.ck.TextAlign.Center
+      : environment.ck.TextAlign.Left
   const baseFontSizeMm = composed.style.fontSize ?? 0
   const minFontSizeMm = baseFontSizeMm * MIN_FONT_RATIO
 
   const tryLayout = (fontSizeMm: number) => {
     const paragraphs = composed.content.map((spans) =>
-      buildParagraph(resources, composed.style, spans, fontSizeMm, wrapWidth, align),
+      buildParagraph(environment, composed.style, spans, fontSizeMm, wrapWidth, align),
     )
     const paragraphGap = pixelsFromMm(composed.style.paragraphGap ?? 0)
     const height =
@@ -114,11 +116,11 @@ function layoutBlockText(resources: Resources, composed: ComposedText, layout: T
     composed.style.valign === "center"
       ? pixelsFromMm(composed.boxYMm) + Math.max(0, spareHeight / 2)
       : pixelsFromMm(composed.boxYMm)
-  const capHeight = capHeightPx(resources, composed.style, laid.fontSizeMm)
+  const capHeight = capHeightPx(environment, composed.style, laid.fontSizeMm)
   const firstLineAscent = laid.paragraphs[0]?.paragraph.getLineMetrics()[0]?.ascent ?? 0
   let cursorY = blockTop - (firstLineAscent - capHeight)
   for (const shaped of laid.paragraphs) {
-    placeParagraph(layout, resources, shaped, boxX, cursorY, laid.fontSizeMm)
+    placeParagraph(layout, environment, shaped, boxX, cursorY, laid.fontSizeMm)
     cursorY += shaped.paragraph.getHeight() + laid.paragraphGap
   }
 }
@@ -139,27 +141,27 @@ interface ShapedParagraph {
 }
 
 function buildParagraph(
-  resources: Resources,
+  environment: Environment,
   base: Style,
   spans: Span[],
   fontSizeMm: number,
   wrapWidthPx: number,
   align: TextAlign,
 ): ShapedParagraph {
-  const paragraphStyle = new resources.ck.ParagraphStyle({
-    textStyle: ckTextStyle(resources, base, fontSizeMm),
+  const paragraphStyle = new environment.ck.ParagraphStyle({
+    textStyle: ckTextStyle(environment, base, fontSizeMm),
     textAlign: align,
   })
-  const builder = resources.ck.ParagraphBuilder.MakeFromFontProvider(
+  const builder = environment.ck.ParagraphBuilder.MakeFromFontProvider(
     paragraphStyle,
-    resources.fonts,
+    environment.fonts,
   )
   const placeholders: (InlineImage | null)[] = []
   const backgrounds: BackgroundRange[] = []
 
   let offset = 0
   for (const span of spans)
-    offset = layoutSpan(resources, builder, span, fontSizeMm, offset, placeholders, backgrounds)
+    offset = layoutSpan(environment, builder, span, fontSizeMm, offset, placeholders, backgrounds)
 
   const paragraph = builder.build()
   builder.delete()
@@ -168,7 +170,7 @@ function buildParagraph(
 }
 
 function layoutSpan(
-  resources: Resources,
+  environment: Environment,
   builder: ParagraphBuilder,
   span: Span,
   fontSizeMm: number,
@@ -177,16 +179,16 @@ function layoutSpan(
   backgrounds: BackgroundRange[],
 ): number {
   if ("symbolUrl" in span) {
-    const aspect = symbolAspect(resources, span.symbolUrl)
+    const aspect = symbolAspect(environment, span.symbolUrl)
     if (aspect == null) return offset
-    const capHeight = capHeightPx(resources, span.style, fontSizeMm)
+    const capHeight = capHeightPx(environment, span.style, fontSizeMm)
     const height = capHeight * INLINE_IMAGE_CAP_RATIO
     const width = height * aspect
     builder.addPlaceholder(
       width,
       height,
-      resources.ck.PlaceholderAlignment.Middle,
-      resources.ck.TextBaseline.Alphabetic,
+      environment.ck.PlaceholderAlignment.Middle,
+      environment.ck.TextBaseline.Alphabetic,
       0,
     )
     placeholders.push({
@@ -196,20 +198,20 @@ function layoutSpan(
     return offset + 1
   }
 
-  offset = layoutMargin(resources, builder, span.style.margin?.before, offset, placeholders)
+  offset = layoutMargin(environment, builder, span.style.margin?.before, offset, placeholders)
   const text = span.style.uppercase ? span.text.toUpperCase() : span.text
-  builder.pushStyle(ckTextStyle(resources, span.style, fontSizeMm))
+  builder.pushStyle(ckTextStyle(environment, span.style, fontSizeMm))
   builder.addText(text)
   builder.pop()
   const start = offset
   offset += text.length
 
   if (span.style.background) backgrounds.push({ start, end: offset, style: span.style })
-  return layoutMargin(resources, builder, span.style.margin?.after, offset, placeholders)
+  return layoutMargin(environment, builder, span.style.margin?.after, offset, placeholders)
 }
 
 function layoutMargin(
-  resources: Resources,
+  environment: Environment,
   builder: ParagraphBuilder,
   marginMm: Mm | undefined,
   offset: number,
@@ -220,8 +222,8 @@ function layoutMargin(
   builder.addPlaceholder(
     gap,
     1,
-    resources.ck.PlaceholderAlignment.Middle,
-    resources.ck.TextBaseline.Alphabetic,
+    environment.ck.PlaceholderAlignment.Middle,
+    environment.ck.TextBaseline.Alphabetic,
     0,
   )
   placeholders.push(null)
@@ -230,19 +232,19 @@ function layoutMargin(
 
 function placeParagraph(
   layout: TextLayout,
-  resources: Resources,
+  environment: Environment,
   shaped: ShapedParagraph,
   x: number,
   y: number,
   fontSizeMm: number,
 ) {
   layout.paragraphs.push({ paragraph: shaped.paragraph, x, y })
-  layout.backgrounds.push(...placeBackgrounds(resources, shaped, x, y, fontSizeMm))
+  layout.backgrounds.push(...placeBackgrounds(environment, shaped, x, y, fontSizeMm))
   layout.inlineImages.push(...placeInlineImages(shaped, x, y))
 }
 
 function placeBackgrounds(
-  resources: Resources,
+  environment: Environment,
   shaped: ShapedParagraph,
   originX: number,
   originY: number,
@@ -255,12 +257,12 @@ function placeBackgrounds(
     if (!background) continue
     const outset = mmFromOutset(background.outset)
     const corners = pxFromCorners(background.corners)
-    const capHeight = capHeightPx(resources, range.style, fontSizeMm)
+    const capHeight = capHeightPx(environment, range.style, fontSizeMm)
     for (const { rect } of shaped.paragraph.getRectsForRange(
       range.start,
       range.end,
-      resources.ck.RectHeightStyle.Max,
-      resources.ck.RectWidthStyle.Tight,
+      environment.ck.RectHeightStyle.Max,
+      environment.ck.RectWidthStyle.Tight,
     )) {
       const midY = (rect[1] + rect[3]) / 2
       const line = lineAt(lines, midY)
@@ -306,19 +308,19 @@ const lineAt = (lines: ReturnType<Paragraph["getLineMetrics"]>, y: number) =>
   lines.find((line) => y >= line.baseline - line.ascent && y <= line.baseline + line.descent) ??
   lines[0]
 
-const capHeightPx = (resources: Resources, style: Style, fontSizeMm: number) =>
-  (resources.capRatios.get(style.fontFamily ?? DEFAULT_FONT_FAMILY) ?? FALLBACK_CAP_RATIO) *
+const capHeightPx = (environment: Environment, style: Style, fontSizeMm: number) =>
+  (environment.capRatios.get(style.fontFamily ?? DEFAULT_FONT_FAMILY) ?? FALLBACK_CAP_RATIO) *
   pixelsFromMm(fontSizeMm)
 
 function capTopPx(
-  resources: Resources,
+  environment: Environment,
   style: Style,
   boxYPx: number,
   fontSizeMm: number,
   paragraph: Paragraph,
 ): number {
   const ascent = paragraph.getLineMetrics()[0]?.ascent ?? 0
-  return boxYPx - (ascent - capHeightPx(resources, style, fontSizeMm))
+  return boxYPx - (ascent - capHeightPx(environment, style, fontSizeMm))
 }
 
 const mmFromOutset = (outset: Background["outset"]) => ({
@@ -335,8 +337,8 @@ const pxFromCorners = (corners: Background["corners"]): PlacedCorners => ({
   bottomLeft: pixelsFromMm(corners?.bottomLeft ?? 0),
 })
 
-const ckFontWeight = (resources: Resources, weight = 400) => {
-  const weights = resources.ck.FontWeight
+const ckFontWeight = (environment: Environment, weight = 400) => {
+  const weights = environment.ck.FontWeight
   if (weight <= 300) return weights.Light
   if (weight <= 400) return weights.Normal
   if (weight <= 500) return weights.Medium
@@ -346,17 +348,17 @@ const ckFontWeight = (resources: Resources, weight = 400) => {
   return weights.Black
 }
 
-const ckTextStyle = (resources: Resources, style: Style, fontSizeMm: number): CkTextStyle =>
-  new resources.ck.TextStyle({
-    color: colorFromHex(resources, style.color ?? "#000000", style.opacity ?? 1),
+const ckTextStyle = (environment: Environment, style: Style, fontSizeMm: number): CkTextStyle =>
+  new environment.ck.TextStyle({
+    color: colorFromHex(environment, style.color ?? "#000000", style.opacity ?? 1),
     fontFamilies: [style.fontFamily ?? DEFAULT_FONT_FAMILY],
     fontSize: pixelsFromMm(fontSizeMm),
     fontStyle: {
-      weight: ckFontWeight(resources, style.fontWeight),
+      weight: ckFontWeight(environment, style.fontWeight),
       slant:
         style.fontStyle === "italic"
-          ? resources.ck.FontSlant.Italic
-          : resources.ck.FontSlant.Upright,
+          ? environment.ck.FontSlant.Italic
+          : environment.ck.FontSlant.Upright,
     },
     letterSpacing: pixelsFromMm(style.letterSpacing ?? 0),
     heightMultiplier: style.lineHeight,

@@ -4,7 +4,7 @@ import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import { fetchBytes } from "~/utils/fetch-bytes"
-import type { FontFace } from "~/db"
+import type { DB } from "~/db"
 
 interface SvgFonts {
   fontBuffers: Uint8Array[]
@@ -15,7 +15,7 @@ type SymbolSource =
   | { kind: "raster"; aspect: number; image: Image }
   | { kind: "vector"; aspect: number; svg: Uint8Array }
 
-export interface Resources {
+export interface Environment {
   ck: CanvasKit
   fonts: TypefaceFontProvider
   svgFonts: SvgFonts
@@ -26,10 +26,10 @@ export interface Resources {
 
 export const FALLBACK_CAP_RATIO = 0.7
 
-export const colorFromHex = (resources: Resources, hex: string, opacity = 1) => {
+export const colorFromHex = (environment: Environment, hex: string, opacity = 1) => {
   const value = hex.replace("#", "")
   const channel = (i: number) => parseInt(value.slice(i, i + 2), 16)
-  return resources.ck.Color(channel(0), channel(2), channel(4), opacity)
+  return environment.ck.Color(channel(0), channel(2), channel(4), opacity)
 }
 
 let canvasKitReady: Promise<CanvasKit> | null = null
@@ -55,8 +55,8 @@ async function loadSymbolSource(ck: CanvasKit, url: string): Promise<SymbolSourc
   }
 }
 
-export const symbolAspect = (resources: Resources, url: string): number | null =>
-  resources.symbolSources.get(url)?.aspect ?? null
+export const symbolAspect = (environment: Environment, url: string): number | null =>
+  environment.symbolSources.get(url)?.aspect ?? null
 
 function bucketedHeightPx(heightPx: number): number {
   let size = 1
@@ -65,39 +65,39 @@ function bucketedHeightPx(heightPx: number): number {
 }
 
 export function symbolImageForHeight(
-  resources: Resources,
+  environment: Environment,
   url: string,
   heightPx: number,
 ): Image | null {
-  const source = resources.symbolSources.get(url)
+  const source = environment.symbolSources.get(url)
   if (!source) return null
   if (source.kind === "raster") return source.image
 
   const height = bucketedHeightPx(heightPx)
   const key = `${url}@${height}`
-  const cached = resources.rasters.get(key)
+  const cached = environment.rasters.get(key)
   if (cached) return cached
 
-  const image = rasterizeSvg(resources, source.svg, height)
-  resources.rasters.set(key, image)
+  const image = rasterizeSvg(environment, source.svg, height)
+  environment.rasters.set(key, image)
   return image
 }
 
-function rasterizeSvg(resources: Resources, svg: Uint8Array, heightPx: number): Image {
+function rasterizeSvg(environment: Environment, svg: Uint8Array, heightPx: number): Image {
   const renderer = new Resvg(svg, {
     fitTo: { mode: "height", value: heightPx },
-    font: resources.svgFonts,
+    font: environment.svgFonts,
   })
   try {
     const rendered = renderer.render()
     try {
-      const image = resources.ck.MakeImage(
+      const image = environment.ck.MakeImage(
         {
           width: rendered.width,
           height: rendered.height,
-          alphaType: resources.ck.AlphaType.Premul,
-          colorType: resources.ck.ColorType.RGBA_8888,
-          colorSpace: resources.ck.ColorSpace.SRGB,
+          alphaType: environment.ck.AlphaType.Premul,
+          colorType: environment.ck.ColorType.RGBA_8888,
+          colorSpace: environment.ck.ColorSpace.SRGB,
         },
         rendered.pixels,
         4 * rendered.width,
@@ -132,14 +132,14 @@ function capRatio(ck: CanvasKit, bytes: Uint8Array): number {
   }
 }
 
-export async function loadResources(fonts: FontFace[], symbolUrls: string[]): Promise<Resources> {
+export async function loadEnvironment(db: DB): Promise<Environment> {
   const [ck] = await Promise.all([canvasKit(), resvgWasm()])
 
   const provider = ck.TypefaceFontProvider.Make()
   const capRatios = new Map<string, number>()
   const fontBuffers: Uint8Array[] = []
   await Promise.all(
-    fonts.map(async (font) => {
+    db.fonts.map(async (font) => {
       const bytes = await fetchBytes(font.src)
       provider.registerFont(bytes, font.fontFamily)
       fontBuffers.push(bytes)
@@ -149,7 +149,7 @@ export async function loadResources(fonts: FontFace[], symbolUrls: string[]): Pr
 
   const symbolSources = new Map<string, SymbolSource>()
   await Promise.all(
-    [...new Set(symbolUrls)].map(async (url) =>
+    [...new Set(Object.values(db.symbols))].map(async (url) =>
       symbolSources.set(url, await loadSymbolSource(ck, url)),
     ),
   )
@@ -157,7 +157,7 @@ export async function loadResources(fonts: FontFace[], symbolUrls: string[]): Pr
   return {
     ck,
     fonts: provider,
-    svgFonts: { fontBuffers, defaultFontFamily: fonts[0]?.fontFamily },
+    svgFonts: { fontBuffers, defaultFontFamily: db.fonts[0]?.fontFamily },
     symbolSources,
     rasters: new Map(),
     capRatios,
