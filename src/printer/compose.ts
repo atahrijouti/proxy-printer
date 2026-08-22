@@ -1,5 +1,5 @@
 import { parseMarkup } from "./markup"
-import type { Overlay, Style, Symbols } from "./types"
+import type { Overlay, Style, Symbols } from "~/db"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
@@ -21,8 +21,12 @@ export function composeText(
   styles: Record<string, Style>,
   symbols: Symbols,
 ): ComposedText {
-  const base = styles[overlay.style]
-  if (!base) throw new Error(`unknown style: "${overlay.style}"`)
+  const named = styles[overlay.style]
+  if (!named) {
+    // known lacking feature : show diagnosis for missing styles
+    console.warn(`unknown style: "${overlay.style}"`)
+  }
+  const base: Style = named ?? {}
   const mode = base.mode === "block" ? "block" : "inline"
 
   const raw = (Array.isArray(overlay.content) ? overlay.content : [overlay.content]).filter(
@@ -54,7 +58,9 @@ function composeParagraph(
     if (node.type === "symbol") {
       const symbolUrl = symbols[node.id]
       if (!symbolUrl) {
+        // known lacking feature : show diagnosis for missing symbols
         console.warn(`unknown symbol: {sym ${node.id}}`)
+        spans.push({ style, text: `{sym ${node.id}}` })
         continue
       }
       spans.push({ style, symbolUrl })

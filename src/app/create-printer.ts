@@ -1,8 +1,8 @@
 import { createMemo, createResource, createSignal, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
+import { fetchDb } from "~/db"
 import {
   buildPdf,
-  fetchDb,
   prepareDb,
   renderCard,
   selectCards,

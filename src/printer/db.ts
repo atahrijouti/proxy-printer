@@ -1,5 +1,5 @@
 import { loadResources, type Resources } from "./resources"
-import type { CardSpec, DB, Style, Symbols } from "./types"
+import type { CardSpec, DB, Style, Symbols } from "~/db"
 
 export interface PreparedDb {
   cards: CardSpec[]
@@ -11,12 +11,6 @@ export interface PreparedDb {
 
 function symbolUrls(db: DB): string[] {
   return [...new Set(Object.values(db.symbols ?? {}))]
-}
-
-export async function fetchDb(url: string): Promise<DB> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`DB fetch failed (${response.status})`)
-  return (await response.json()) as DB
 }
 
 export async function prepareDb(db: DB): Promise<PreparedDb> {

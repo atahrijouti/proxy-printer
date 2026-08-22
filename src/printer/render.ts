@@ -4,7 +4,7 @@ import { CARD_HEIGHT, CARD_WIDTH } from "./page"
 import { composeText } from "./compose"
 import { symbolImageForHeight, colorFromHex, type Resources } from "./resources"
 import { layoutText, type TextLayout, type PlacedInlineImage } from "./text-layout"
-import type { CardSpec, Overlay, Style, Symbols } from "./types"
+import type { CardSpec, Overlay, Style, Symbols } from "~/db"
 import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>

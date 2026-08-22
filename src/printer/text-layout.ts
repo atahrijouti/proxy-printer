@@ -7,7 +7,7 @@ import type {
 import { CARD_WIDTH } from "./page"
 import type { ComposedText, Span } from "./compose"
 import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Resources } from "./resources"
-import type { Background, Mm, Style } from "./types"
+import type { Background, Mm, Style } from "~/db"
 import { pixelsFromMm } from "./units"
 
 const UNBOUNDED_WIDTH_PX = 1e6

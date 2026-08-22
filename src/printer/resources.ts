@@ -4,7 +4,7 @@ import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import { fetchBytes } from "~/utils/fetch-bytes"
-import type { FontFace } from "./types"
+import type { FontFace } from "~/db"
 
 interface SvgFonts {
   fontBuffers: Uint8Array[]
