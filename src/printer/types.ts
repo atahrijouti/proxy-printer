@@ -1,4 +1,4 @@
-export type Length = string
+export type Mm = number
 
 export interface FontFace {
   fontFamily: string
@@ -9,25 +9,25 @@ export interface FontFace {
 
 export interface Background {
   fill: string
-  outset?: { top?: Length; right?: Length; bottom?: Length; left?: Length }
-  corners?: { topLeft?: Length; topRight?: Length; bottomRight?: Length; bottomLeft?: Length }
+  outset?: { top?: Mm; right?: Mm; bottom?: Mm; left?: Mm }
+  corners?: { topLeft?: Mm; topRight?: Mm; bottomRight?: Mm; bottomLeft?: Mm }
 }
 
 export interface Style {
   fontFamily?: string
   fontWeight?: number
   fontStyle?: "normal" | "italic"
-  fontSize?: Length
+  fontSize?: Mm
   color?: string
   opacity?: number
-  letterSpacing?: Length
+  letterSpacing?: Mm
   uppercase?: boolean
   lineHeight?: number
-  paragraphGap?: Length
+  paragraphGap?: Mm
   background?: Background
-  margin?: { before?: Length; after?: Length }
+  margin?: { before?: Mm; after?: Mm }
   mode?: "inline" | "block"
-  box?: { x?: Length; y?: Length; w?: Length; h?: Length }
+  box?: { x?: Mm; y?: Mm; w?: Mm; h?: Mm }
   align?: "left" | "center"
   valign?: "top" | "center"
 }

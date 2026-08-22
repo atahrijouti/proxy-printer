@@ -1,6 +1,5 @@
 import { parseMarkup } from "./markup"
 import type { Overlay, Style, Symbols } from "./types"
-import { mmFromLength } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
@@ -36,10 +35,10 @@ export function composeText(
     mode,
     content,
     style: base,
-    boxXMm: mmFromLength(base.box?.x),
-    boxYMm: mmFromLength(base.box?.y),
-    boxWidthMm: mmFromLength(base.box?.w),
-    boxHeightMm: mmFromLength(base.box?.h),
+    boxXMm: base.box?.x ?? 0,
+    boxYMm: base.box?.y ?? 0,
+    boxWidthMm: base.box?.w ?? 0,
+    boxHeightMm: base.box?.h ?? 0,
   }
 }
 

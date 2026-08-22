@@ -7,8 +7,8 @@ import type {
 import { CARD_WIDTH } from "./page"
 import type { ComposedText, Span } from "./compose"
 import { FALLBACK_CAP_RATIO, symbolAspect, colorFromHex, type Resources } from "./resources"
-import type { Background, Style } from "./types"
-import { mmFromLength, pixelsFromMm } from "./units"
+import type { Background, Mm, Style } from "./types"
+import { pixelsFromMm } from "./units"
 
 const UNBOUNDED_WIDTH_PX = 1e6
 const DEFAULT_FONT_FAMILY = "Bogle"
@@ -58,7 +58,7 @@ export function layoutText(resources: Resources, composed: ComposedText): TextLa
 }
 
 function layoutInlineText(resources: Resources, composed: ComposedText, layout: TextLayout) {
-  const fontSizeMm = mmFromLength(composed.style.fontSize)
+  const fontSizeMm = composed.style.fontSize ?? 0
   const spans = composed.content[0] ?? []
   const shaped = buildParagraph(
     resources,
@@ -89,14 +89,14 @@ function layoutBlockText(resources: Resources, composed: ComposedText, layout: T
   const wrapWidth = pixelsFromMm(composed.boxWidthMm)
   const align =
     composed.style.align === "center" ? resources.ck.TextAlign.Center : resources.ck.TextAlign.Left
-  const baseFontSizeMm = mmFromLength(composed.style.fontSize)
+  const baseFontSizeMm = composed.style.fontSize ?? 0
   const minFontSizeMm = baseFontSizeMm * MIN_FONT_RATIO
 
   const tryLayout = (fontSizeMm: number) => {
     const paragraphs = composed.content.map((spans) =>
       buildParagraph(resources, composed.style, spans, fontSizeMm, wrapWidth, align),
     )
-    const paragraphGap = pixelsFromMm(mmFromLength(composed.style.paragraphGap))
+    const paragraphGap = pixelsFromMm(composed.style.paragraphGap ?? 0)
     const height =
       paragraphs.reduce((sum, shaped) => sum + shaped.paragraph.getHeight(), 0) +
       paragraphGap * Math.max(0, paragraphs.length - 1)
@@ -211,11 +211,11 @@ function layoutSpan(
 function layoutMargin(
   resources: Resources,
   builder: ParagraphBuilder,
-  marginLength: string | undefined,
+  marginMm: Mm | undefined,
   offset: number,
   placeholders: (InlineImage | null)[],
 ): number {
-  const gap = pixelsFromMm(mmFromLength(marginLength))
+  const gap = pixelsFromMm(marginMm ?? 0)
   if (gap <= 0) return offset
   builder.addPlaceholder(
     gap,
@@ -321,20 +321,18 @@ function capTopPx(
   return boxYPx - (ascent - capHeightPx(resources, style, fontSizeMm))
 }
 
-const mmFromOutset = (
-  outset: { top?: string; right?: string; bottom?: string; left?: string } | undefined,
-) => ({
-  top: mmFromLength(outset?.top),
-  right: mmFromLength(outset?.right),
-  bottom: mmFromLength(outset?.bottom),
-  left: mmFromLength(outset?.left),
+const mmFromOutset = (outset: Background["outset"]) => ({
+  top: outset?.top ?? 0,
+  right: outset?.right ?? 0,
+  bottom: outset?.bottom ?? 0,
+  left: outset?.left ?? 0,
 })
 
 const pxFromCorners = (corners: Background["corners"]): PlacedCorners => ({
-  topLeft: pixelsFromMm(mmFromLength(corners?.topLeft)),
-  topRight: pixelsFromMm(mmFromLength(corners?.topRight)),
-  bottomRight: pixelsFromMm(mmFromLength(corners?.bottomRight)),
-  bottomLeft: pixelsFromMm(mmFromLength(corners?.bottomLeft)),
+  topLeft: pixelsFromMm(corners?.topLeft ?? 0),
+  topRight: pixelsFromMm(corners?.topRight ?? 0),
+  bottomRight: pixelsFromMm(corners?.bottomRight ?? 0),
+  bottomLeft: pixelsFromMm(corners?.bottomLeft ?? 0),
 })
 
 const ckFontWeight = (resources: Resources, weight = 400) => {
@@ -360,7 +358,7 @@ const ckTextStyle = (resources: Resources, style: Style, fontSizeMm: number): Ck
           ? resources.ck.FontSlant.Italic
           : resources.ck.FontSlant.Upright,
     },
-    letterSpacing: pixelsFromMm(mmFromLength(style.letterSpacing)),
+    letterSpacing: pixelsFromMm(style.letterSpacing ?? 0),
     heightMultiplier: style.lineHeight,
     halfLeading: true,
   })
