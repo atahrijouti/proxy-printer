@@ -10,7 +10,10 @@ import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 
-export type Layer = { type: "image"; src: string } | { type: "text"; src: string }
+export interface Layer {
+  type: "image" | "text"
+  src: string
+}
 
 export function cardLayers(
   environment: Environment,
