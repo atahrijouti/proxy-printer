@@ -23,3 +23,23 @@
 
   The `rasters` cache stays a field on `Environment`, initialised by `loadEnvironment`
   and read from `render.ts` — same as `capRatios` is read from `text-layout.ts`.
+- **`Layer` → `RenderedOverlay`, with the src kind made explicit.** Renamed to match
+  `OverlaySpec` / `RenderedOverlay`. The shape becomes
+  `{ type: "image" | "text"; src: string; srcType: "url" | "inline" }` — `type` keeps
+  saying what the overlay is, `srcType` says how to treat `src`. `pdf.ts:20,46` branch
+  on `srcType` instead of inferring it from `type`; `document.tsx:33` keeps reading
+  `src` unchanged.
+- **Overlay dispatch in `render.ts` becomes an exhaustive `switch`.** Replace the
+  `if`/`continue`/`if`/`if` chain (`:31-41`) with a `switch` on `overlay.type` plus
+  `default: overlay satisfies never`, so an unhandled kind is a compile error instead of
+  a silent no-op. `flush()` moves into the `image` and `shape` cases; behaviour identical.
+- **`ComposedText` carries one resolved `box` instead of four flattened fields.**
+  `{ mode, content, style, box: { x, y, width, height } }`, resolved once from
+  `style.box` with its defaults (`compose.ts:39-47`). Unmarked `box` — it is all mm and
+  has no px twin in that struct; `text-layout.ts` reads `pixelsFromMm(composed.box.x)`.
+  Spelled-out `width`/`height` rather than the schema's `w`/`h`.
+- **Drop `compose.ts`'s `Paragraph` alias; alias CanvasKit's.** The alias is used twice
+  (`compose.ts:12,55`), so `content: Span[][]` and `composeParagraph(): Span[]` replace
+  it — consumers already name the inner array `spans` (`text-layout.ts:64,100`).
+  CanvasKit's `Paragraph` gets imported as `CkParagraph`, following the `CkTextStyle`
+  convention already in that file (`text-layout.ts:5`).
