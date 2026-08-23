@@ -48,3 +48,8 @@
   pieces) → `RenderedOverlay` (raster). `compose.ts` keeps its name — "compose" is now
   one named phase rather than a vague verb. Call sites: `render.ts:5,53`,
   `text-layout.ts:10,55`.
+- **`laid` → `layoutAttempt`.** `text-layout.ts:110`, plus its reads in the shrink loop
+  (`:111-113`) and at `:121-126`. `tryLayout` keeps its name.
+- **`PX_PER_MM` → `RASTER_PX_PER_MM`.** `units.ts:1`. `PT_PER_MM` is a physical fact,
+  `PX_PER_MM` is a chosen raster density (16 px/mm, ~406 DPI); the shared shape makes the
+  choice look equally fixed. Rename only — `pixelsFromMm` and `pointsFromMm` unchanged.
