@@ -53,3 +53,10 @@
 - **`PX_PER_MM` → `RASTER_PX_PER_MM`.** `units.ts:1`. `PT_PER_MM` is a physical fact,
   `PX_PER_MM` is a chosen raster density (16 px/mm, ~406 DPI); the shared shape makes the
   choice look equally fixed. Rename only — `pixelsFromMm` and `pointsFromMm` unchanged.
+- **The raw deck text is `deckSource` everywhere.** It is unvalidated text parsed line by
+  line, and `deck` currently sits on both sides of that conversion — `selectFromDeck`
+  takes a deck and returns a deck. Sites: `deck.ts:3,5,7` (param and its two reads);
+  `imposition.ts:6,18` (the `Imposition` field); `app/create-printer.ts:34,67,77`
+  (`Settings` field, debounced local, and where the `Imposition` is built);
+  `app/sidebar.tsx:27` (textarea binding). `Imposition["kind"]` stays `"deck"` — that
+  names the mode, not the text.
