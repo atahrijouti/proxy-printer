@@ -60,3 +60,14 @@
   (`Settings` field, debounced local, and where the `Imposition` is built);
   `app/sidebar.tsx:27` (textarea binding). `Imposition["kind"]` stays `"deck"` — that
   names the mode, not the text.
+
+# step 2 — needs logic changes
+
+- **Drop the hardcoded `"Bogle"` default font family.** `text-layout.ts:16` hardcodes
+  `proxy-db-lorcana`'s typeface as the engine's fallback. Use the DB's own default —
+  `db.fonts[0]?.fontFamily`, already computed at `environment.ts:161` but filed under
+  `svgFonts` where only resvg reads it — in both places that use the literal: the
+  `capRatios` lookup (`text-layout.ts:313`) and `fontFamilies` (`:356`), the latter as a
+  list `[style.fontFamily, dbDefault]` so CanvasKit's own fallback does the work.
+  Today a non-Bogle DB renders correct glyphs at the wrong vertical placement, because
+  `capRatios` misses and every cap height becomes `FALLBACK_CAP_RATIO` 0.7.
