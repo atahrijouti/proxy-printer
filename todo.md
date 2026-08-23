@@ -43,3 +43,8 @@
   it — consumers already name the inner array `spans` (`text-layout.ts:64,100`).
   CanvasKit's `Paragraph` gets imported as `CkParagraph`, following the `CkTextStyle`
   convention already in that file (`text-layout.ts:5`).
+- **`ComposedText` → `ComposedTextOverlay`, `composeText` → `composeTextOverlay`.** Completes
+  the three-phase overlay vocabulary: `OverlaySpec` (db) → `ComposedTextOverlay` (typed
+  pieces) → `RenderedOverlay` (raster). `compose.ts` keeps its name — "compose" is now
+  one named phase rather than a vague verb. Call sites: `render.ts:5,53`,
+  `text-layout.ts:10,55`.
