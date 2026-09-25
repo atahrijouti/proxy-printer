@@ -4,8 +4,7 @@ import type { CanvasKit, Image, TypefaceFontProvider } from "canvaskit-wasm"
 import CanvasKitInit from "canvaskit-wasm"
 import wasmUrl from "canvaskit-wasm/bin/canvaskit.wasm?url"
 
-import type { DB } from "~/db"
-import { fetchBytes } from "~/utils/fetch-bytes"
+import type { DB } from "~/db/schema"
 
 interface SvgFonts {
   fontBuffers: Uint8Array[]
@@ -163,4 +162,10 @@ export async function loadEnvironment(db: DB): Promise<Environment> {
     rasters: new Map(),
     capRatios,
   }
+}
+
+async function fetchBytes(url: string): Promise<Uint8Array> {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`fetch failed (${response.status}): ${url}`)
+  return new Uint8Array(await response.arrayBuffer())
 }

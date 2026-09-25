@@ -1,7 +1,18 @@
-import { type Accessor, createMemo, createResource, createSignal } from "solid-js"
+import {
+  type Accessor,
+  createContext,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  type JSX,
+  onCleanup,
+  useContext,
+} from "solid-js"
 import { createStore } from "solid-js/store"
 
-import { type DB, fetchDb } from "~/db"
+import { fetchDb } from "~/db/load"
+import type { DB } from "~/db/schema"
 import {
   buildPdf,
   type Environment,
@@ -11,8 +22,6 @@ import {
   type RenderedCard,
   selectCards,
 } from "~/printer"
-import { createDebounced } from "~/utils/debounce"
-import { downloadBlob } from "~/utils/download"
 
 const DEFAULT_URL = "http://localhost:8787/db-sv-print.json"
 
@@ -28,6 +37,7 @@ const DEFAULT_DECK = `1 tinker bell - giant fairy
 const DB_URL_DEBOUNCE_MS = 500
 const DECK_DEBOUNCE_MS = 300
 const FILE_NAME = "proxies.pdf"
+const REVOKE_DELAY_MS = 10_000
 
 export interface Settings {
   dbUrl: string
@@ -54,7 +64,7 @@ export interface Printer {
 const messageFromError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-export function createPrinter(): Printer {
+function createPrinter(): Printer {
   const [settings, setSettings] = createStore<Settings>({
     dbUrl: DEFAULT_URL,
     deck: DEFAULT_DECK,
@@ -111,4 +121,37 @@ export function createPrinter(): Printer {
   }
 
   return { settings, setSettings, status, ready, building, renderedCards, downloadPdf }
+}
+
+const PrinterContext = createContext<Printer>()
+
+export const PrinterProvider = (props: { children: JSX.Element }) => {
+  const printer = createPrinter()
+
+  return <PrinterContext.Provider value={printer}>{props.children}</PrinterContext.Provider>
+}
+
+export function usePrinter(): Printer {
+  const printer = useContext(PrinterContext)
+  if (!printer) throw new Error("usePrinter used outside PrinterProvider")
+  return printer
+}
+
+function createDebounced<T>(source: Accessor<T>, delayMs: number): Accessor<T> {
+  const [value, setValue] = createSignal(source())
+  createEffect(() => {
+    const next = source()
+    const timer = setTimeout(() => setValue(() => next), delayMs)
+    onCleanup(() => clearTimeout(timer))
+  })
+  return value
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const href = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = href
+  anchor.download = fileName
+  anchor.click()
+  setTimeout(() => URL.revokeObjectURL(href), REVOKE_DELAY_MS)
 }

@@ -1,6 +1,6 @@
 import { type Component, Show } from "solid-js"
 
-import { usePrinter } from "./printer-context"
+import { usePrinter } from "./printer"
 
 export const Sidebar: Component = () => {
   const { settings, setSettings, status, ready, building, downloadPdf } = usePrinter()

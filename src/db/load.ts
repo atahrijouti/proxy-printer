@@ -4,7 +4,7 @@ import { type DB, dbSchema } from "./schema"
 
 const MAX_REPORTED_ISSUES = 10
 
-export function parseDb(value: unknown): DB {
+function parseDb(value: unknown): DB {
   const result = v.safeParse(dbSchema, value)
   if (result.success) return result.output
 

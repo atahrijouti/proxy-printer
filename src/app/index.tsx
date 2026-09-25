@@ -5,7 +5,7 @@ import type { Component } from "solid-js"
 import { render } from "solid-js/web"
 
 import { Document } from "./document"
-import { PrinterProvider } from "./printer-context"
+import { PrinterProvider } from "./printer"
 import { Sidebar } from "./sidebar"
 import { embeddedStyles } from "./styles"
 

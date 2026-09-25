@@ -9,9 +9,9 @@ import {
   PAGE_HEIGHT,
   PAGE_PADDING,
   PAGE_WIDTH,
+  pointsFromMm,
 } from "./page"
 import type { Layer } from "./render"
-import { pointsFromMm } from "./units"
 
 const PAGE_SIZE_PT = [pointsFromMm(PAGE_WIDTH), pointsFromMm(PAGE_HEIGHT)]
 const EPOCH = new Date(0)

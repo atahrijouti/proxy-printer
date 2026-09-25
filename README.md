@@ -1,3 +1,3 @@
 # Proxy-Printer
 
-General purpopse proxy printer.
+General purpose proxy printer.

@@ -1,12 +1,11 @@
 import type { Canvas } from "canvaskit-wasm"
 
-import type { CardSpec, DB, Overlay } from "~/db"
+import type { CardSpec, DB, Overlay } from "~/db/schema"
 
 import { composeText } from "./compose"
 import { colorFromHex, type Environment, symbolImageForHeight } from "./environment"
-import { CARD_HEIGHT, CARD_WIDTH } from "./page"
+import { CARD_HEIGHT, CARD_WIDTH, pixelsFromMm } from "./page"
 import { layoutText, type PlacedInlineImage, type TextLayout } from "./text-layout"
-import { pixelsFromMm } from "./units"
 
 type TextOverlay = Extract<Overlay, { type: "text" }>
 

@@ -1,4 +1,4 @@
-import type { Overlay, Style, Symbols } from "~/db"
+import type { Overlay, Style, Symbols } from "~/db/schema"
 
 import { parseMarkup } from "./markup"
 

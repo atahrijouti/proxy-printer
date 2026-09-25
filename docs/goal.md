@@ -46,7 +46,7 @@ chooses: **tagged spans** — a stretch of text that picks up a named style — 
 extensible to other registered kinds. A named style carries typography, the box to lay
 out in, alignment, an optional background and margins. Block text shrinks to fit its box.
 
-The printer interprets no card-domain meaning. *Name*, *ability* and *trait* are nothing
+The printer interprets no card-domain meaning. _Name_, _ability_ and _trait_ are nothing
 to it; it applies the named styles and substitutions it is handed.
 
 ## Rendering
